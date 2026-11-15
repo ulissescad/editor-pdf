@@ -1,10 +1,10 @@
 // Mede, na tela, como o texto de uma caixa quebrou em linhas, para o PDF sair igual ao que se vê.
-import { FONTS, LINE, PAD, type TextStyle } from './model';
+import { FONTS, LINE, PAD, isItalic, type TextStyle } from './model';
 
 const baselineCache = new Map<string, number>();
 
 export const cssFont = (s: TextStyle, px: number) =>
-  `${s.italic ? 'italic' : 'normal'} ${s.bold ? 700 : 400} ${px}px ${FONTS[s.font].css}`;
+  `${isItalic(s) ? 'italic' : 'normal'} ${s.bold ? 700 : 400} ${px}px ${FONTS[s.font].css}`;
 
 /** Distância do topo da linha até a linha de base, em múltiplos do tamanho da fonte. */
 export function baselineFactor(s: TextStyle): number {

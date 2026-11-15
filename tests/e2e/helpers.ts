@@ -36,7 +36,7 @@ export async function openFromHome(page: Page, file: string) {
 
 /** Abre um PDF a partir do próprio editor (“Abrir PDF” na tela vazia ou “Abrir outro PDF”). */
 export async function openInEditor(page: Page, file: string | { name: string; bytes: Uint8Array }) {
-  await page.locator('.editor input[type="file"]').setInputFiles(typeof file === 'string'
+  await page.locator('.editor input[type="file"][accept*="pdf"]').setInputFiles(typeof file === 'string'
     ? file
     : { name: file.name, mimeType: 'application/pdf', buffer: Buffer.from(file.bytes) });
   await waitForDoc(page);

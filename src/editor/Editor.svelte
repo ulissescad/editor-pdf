@@ -1,11 +1,14 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { EditorState } from './state.svelte';
+  import { EditorState, type Tool } from './state.svelte';
   import { PdfView } from './viewer';
   import { takePending, isPdfFile, readPdf } from './session';
   import { canShareFiles, disposePrint, downloadPdf, printPdf, sharePdf } from './output';
-  import { LINE, PAD, clamp } from './model';
+  import { LINE, PAD, clamp, type ImageAsset } from './model';
+  import { loadImageFile } from './images';
   import TextBox from './TextBox.svelte';
+  import ObjBox from './ObjBox.svelte';
+  import SignatureDialog from './SignatureDialog.svelte';
   import PropsPanel from './PropsPanel.svelte';
   import Thumbnails from './Thumbnails.svelte';
   import SearchBar from './SearchBar.svelte';
@@ -24,6 +27,10 @@
   import More from '@lucide/svelte/icons/ellipsis-vertical';
   import Pointer from '@lucide/svelte/icons/mouse-pointer-2';
   import TypeIcon from '@lucide/svelte/icons/type';
+  import SignatureIcon from '@lucide/svelte/icons/signature';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
+  import ImageIcon from '@lucide/svelte/icons/image';
+  import FieldIcon from '@lucide/svelte/icons/rectangle-ellipsis';
   import Files from '@lucide/svelte/icons/files';
   import FileUp from '@lucide/svelte/icons/file-up';
   import X from '@lucide/svelte/icons/x';
@@ -34,6 +41,8 @@
   let container: HTMLDivElement;
   let viewerDiv: HTMLDivElement;
   let fileInput: HTMLInputElement;
+  let imageInput: HTMLInputElement;
+  let signOpen = $state(false);
   let searchOpen = $state(false);
   let thumbsOpen = $state(false);
   let menuOpen = $state(false);
@@ -48,7 +57,7 @@
     return () => wide.removeEventListener('change', onChange);
   });
 
-  const showProps = $derived(ed.hasDoc && (ed.tool === 'text' || !!ed.selected));
+  const showProps = $derived(ed.hasDoc && (ed.tool !== 'select' || !!ed.selected));
   const fmtTime = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   onMount(async () => {
@@ -63,6 +72,7 @@
     if (pending?.kind === 'file') await ed.openBytes(pending.bytes, pending.name);
     else if (pending?.kind === 'draft') await ed.openDraft(pending.hash);
     if (ed.doc) thumbsOpen = isWide && ed.pages > 1;
+    if (ed.doc && pending?.then === 'sign') signOpen = true; // veio da ferramenta “Assinar PDF”
     if (import.meta.env.DEV) (window as unknown as { __ed: EditorState }).__ed = ed; // depuração local
     document.documentElement.dataset.editorReady = 'true';
   });
@@ -91,19 +101,25 @@
   function onDrop(e: DragEvent) {
     e.preventDefault();
     dragging = false;
-    openFile([...(e.dataTransfer?.files ?? [])].find(isPdfFile) ?? e.dataTransfer?.files[0]);
+    const files = [...(e.dataTransfer?.files ?? [])];
+    const image = files.find((f) => f.type.startsWith('image/'));
+    // Com um documento aberto, soltar uma imagem insere a imagem; um PDF troca o documento
+    if (ed.hasDoc && image && !files.some(isPdfFile)) addImageFile(image);
+    else openFile(files.find(isPdfFile) ?? files[0]);
   }
 
-  // ================= criar caixa de texto =================
-  // Ferramenta Texto: toque/clique cria uma caixa de uma linha; arrastar (com mouse/caneta) desenha o tamanho.
+  // ================= criar objetos na página =================
+  // Texto e Campos: toque/clique cria no tamanho padrão; arrastar (com mouse/caneta) desenha o tamanho.
+  // Símbolos: cada toque coloca o símbolo escolhido (ou a data de hoje).
   function onContainerPointerDown(e: PointerEvent) {
     const target = e.target as HTMLElement;
-    if (e.button !== 0 || target.closest('.tbox')) return;
+    if (e.button !== 0 || target.closest('.tbox, .obox')) return;
     const pageEl = target.closest<HTMLElement>('.page');
-    if (ed.tool !== 'text' || !pageEl || !ed.view) {
+    if (ed.tool === 'select' || !pageEl || !ed.view) {
       if (ed.selectedId) ed.select(null);
       return;
     }
+    const tool = ed.tool;
     const view = ed.view;
     const page = Number(pageEl.dataset.pageNumber) - 1;
     const [px0, py0, px1, py1] = view.pageBounds(page);
@@ -113,7 +129,7 @@
     let rect: { x: number; y: number; w: number; h: number } | null = null;
 
     const onMove = (ev: PointerEvent) => {
-      if (ev.pointerType === 'touch') return; // no toque, arrastar rola a página
+      if (ev.pointerType === 'touch' || tool === 'stamp') return; // no toque, arrastar rola a página
       if (!rect && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < 6) return;
       const [x1, y1] = view.clientToPdf(page, ev.clientX, ev.clientY);
       const left = clamp(Math.min(x0, x1), px0, px1), right = clamp(Math.max(x0, x1), px0, px1);
@@ -130,7 +146,13 @@
       drawRect = null;
       if (ev.type === 'pointercancel') return; // o toque virou rolagem
       if (ev.pointerType === 'touch' && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) > 10) return;
-      if (rect && rect.w >= 8) {
+      if (tool === 'stamp') {
+        ed.addStamp(page, x0, y0);
+      } else if (tool === 'field') {
+        if (rect && rect.w >= 8 && rect.h >= 6) ed.addField(page, rect);
+        else if (ed.fieldType === 'check') ed.addField(page, { x: x0 - 6, y: y0 + 6, w: 12, h: 12 });
+        else ed.addField(page, { x: x0 - 2, y: y0 + 9, w: Math.max(40, Math.min(180, px1 - x0)), h: 18 });
+      } else if (rect && rect.w >= 8) {
         ed.addText(page, rect);
       } else {
         // Caixa de uma linha, centralizada verticalmente no ponto tocado
@@ -157,6 +179,30 @@
     }
   }
   const download = () => withBusy('Gerando o PDF…', async () => downloadPdf(await ed.buildPdf(), ed.outputName));
+
+  // ================= assinatura e imagem =================
+  function useSignature(asset: ImageAsset) {
+    signOpen = false;
+    ed.addImage(asset, true);
+    ed.status = { kind: 'info', text: 'Arraste a assinatura até o lugar certo e use os cantos para ajustar o tamanho.' };
+  }
+
+  async function addImageFile(file: File | undefined) {
+    if (!file) return;
+    if (!/^image\//.test(file.type) && !/\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(file.name)) {
+      ed.status = { kind: 'err', text: 'Escolha uma imagem (JPG, PNG ou WebP).' };
+      return;
+    }
+    ed.busy = 'Preparando a imagem…';
+    try {
+      ed.addImage(await loadImageFile(file));
+    } catch (err) {
+      console.error(err);
+      ed.status = { kind: 'err', text: 'Não foi possível abrir esta imagem neste navegador. Tente JPG ou PNG.' };
+    } finally {
+      ed.busy = null;
+    }
+  }
   const share = () => withBusy('Preparando para compartilhar…', async () => { await sharePdf(await ed.buildPdf(), ed.outputName); });
   const print = () => withBusy('Preparando a impressão…', async () => {
     const bytes = await ed.buildPdf();
@@ -178,21 +224,33 @@
     if (mod && k === 'c') { ed.copy(); return; }
     if (mod && k === 'v') { e.preventDefault(); ed.paste(); return; }
     if (mod && k === 'd') { e.preventDefault(); ed.duplicate(); return; }
-    if (!ed.selected) { if (e.key === 'Escape' && ed.tool === 'text') ed.tool = 'select'; return; }
+    if (!ed.selected) { if (e.key === 'Escape' && ed.tool !== 'select') setTool('select'); return; }
     const step = e.shiftKey ? 10 : 1;
     const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] };
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); ed.remove(); }
     else if (e.key === 'Escape') ed.select(null);
-    else if (e.key === 'Enter') { e.preventDefault(); ed.startEditing(ed.selected.id); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      const s = ed.selected;
+      if (s.kind === 'text' || (s.kind === 'field' && s.type === 'text')) ed.startEditing(s.id);
+      else if (s.kind === 'field') { s.value = s.value ? '' : 'sim'; ed.commit(); }
+    }
     else if (moves[e.key]) { e.preventDefault(); ed.nudge(...moves[e.key]); }
   }
 
-  function setTool(t: 'select' | 'text') {
+  const TOOL_TIPS: Record<Exclude<Tool, 'select'>, [string, string]> = {
+    text: ['Clique na página para criar uma caixa de texto, ou arraste para desenhá-la no tamanho certo.',
+      'Toque na página onde quer escrever. Arraste a caixa para mover e use as alças para mudar o tamanho.'],
+    stamp: ['Escolha o símbolo (ou a data) e clique na página para marcar. Cada clique coloca um.',
+      'Escolha o símbolo (ou a data) e toque na página para marcar. Cada toque coloca um.'],
+    field: ['Clique ou arraste na página para criar um campo preenchível, ou use “Detectar campos”.',
+      'Toque na página para criar um campo preenchível, ou use “Detectar campos”.'],
+  };
+
+  function setTool(t: Tool) {
+    if (ed.selectedId) ed.select(null);
     ed.tool = t;
-    if (t === 'select') ed.status = null;
-    else ed.status = { kind: 'info', text: isWide
-      ? 'Clique na página para criar uma caixa de texto, ou arraste para desenhá-la no tamanho certo.'
-      : 'Toque na página onde quer escrever. Arraste a caixa para mover e use as alças para mudar o tamanho.' };
+    ed.status = t === 'select' ? null : { kind: 'info', text: TOOL_TIPS[t][isWide ? 0 : 1] };
   }
 
   const saveLabel = $derived(
@@ -203,7 +261,7 @@
 <svelte:window onkeydown={onKeydown} />
 <svelte:document onvisibilitychange={onVisibility} />
 
-<div class="editor" class:text-mode={ed.tool === 'text'}
+<div class="editor" class:text-mode={ed.tool !== 'select'}
   role="application" aria-label="Editor de PDF"
   ondragover={(e) => { e.preventDefault(); dragging = true; }}
   ondragleave={(e) => { if (e.target === e.currentTarget) dragging = false; }}
@@ -255,6 +313,10 @@
     <nav class="tools" aria-label="Ferramentas">
       <button aria-pressed={ed.tool === 'select'} onclick={() => setTool('select')}><Pointer size={20} /><span>Selecionar</span></button>
       <button aria-pressed={ed.tool === 'text'} onclick={() => setTool('text')}><TypeIcon size={20} /><span>Texto</span></button>
+      <button onclick={() => { setTool('select'); signOpen = true; }}><SignatureIcon size={20} /><span>Assinar</span></button>
+      <button aria-pressed={ed.tool === 'stamp'} onclick={() => setTool('stamp')}><CheckCheck size={20} /><span>Símbolos</span></button>
+      <button onclick={() => imageInput.click()}><ImageIcon size={20} /><span>Imagem</span></button>
+      <button aria-pressed={ed.tool === 'field'} onclick={() => setTool('field')}><FieldIcon size={20} /><span>Campos</span></button>
       <button class="narrow-only" aria-pressed={thumbsOpen} onclick={() => (thumbsOpen = !thumbsOpen)}><Files size={20} /><span>Páginas</span></button>
       <button class="narrow-only" aria-pressed={searchOpen} onclick={() => (searchOpen = !searchOpen)}><Search size={20} /><span>Buscar</span></button>
     </nav>
@@ -272,6 +334,10 @@
     {#if ed.status}
       <div class="msg {ed.status.kind}" role={ed.status.kind === 'err' ? 'alert' : 'status'} id="status">
         <span>{ed.status.text}</span>
+        {#if ed.status.action}
+          {@const action = ed.status.action}
+          <button class="link" onclick={() => { const run = action.run; ed.status = null; run(); }}>{action.label}</button>
+        {/if}
         <button class="icon small" aria-label="Fechar aviso" onclick={() => ed.dismissStatus()}><X size={16} /></button>
       </div>
     {/if}
@@ -296,7 +362,9 @@
       <div class="viewer-container" bind:this={container} onpointerdown={onContainerPointerDown} hidden={!ed.hasDoc}>
         <div class="pdfViewer" bind:this={viewerDiv}></div>
         <div class="object-layer">
-          {#each ed.objects as obj (obj.id)}<TextBox {obj} {ed} />{/each}
+          {#each ed.objects as obj (obj.id)}
+            {#if obj.kind === 'text'}<TextBox {obj} {ed} />{:else}<ObjBox {obj} {ed} />{/if}
+          {/each}
           {#if drawRect}
             <div class="draw-rect" style:left="{drawRect.left}px" style:top="{drawRect.top}px" style:width="{drawRect.width}px" style:height="{drawRect.height}px"></div>
           {/if}
@@ -312,7 +380,7 @@
           {:else}
             <div class="card">
               <h1>Abra um PDF para editar</h1>
-              <p>Preencha formulários e escreva em qualquer PDF. O arquivo não sai do seu aparelho.</p>
+              <p>Preencha formulários, assine e escreva em qualquer PDF. O arquivo não sai do seu aparelho.</p>
               <button class="primary big" onclick={() => fileInput.click()}><FileUp size={20} /> Abrir PDF</button>
               <p class="hint">ou arraste o arquivo para cá</p>
             </div>
@@ -329,7 +397,11 @@
 
   <input bind:this={fileInput} type="file" accept="application/pdf,.pdf" hidden
     onchange={(e) => { openFile(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }}>
+  <input bind:this={imageInput} type="file" accept="image/*" hidden aria-label="Escolher imagem"
+    onchange={(e) => { addImageFile(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }}>
 </div>
+
+{#if signOpen}<SignatureDialog onuse={useSignature} onclose={() => (signOpen = false)} />{/if}
 
 <style>
   .editor {
@@ -430,7 +502,9 @@
       order: 10; justify-content: space-around; border-bottom: 0; border-top: 1px solid var(--border);
       padding-bottom: calc(6px + env(safe-area-inset-bottom));
     }
-    .tools button { flex-direction: column; gap: 2px; height: 54px; padding: 0 8px; font-size: 12px; flex: 1; justify-content: center; }
+    .tools { overflow-x: auto; scrollbar-width: none; justify-content: flex-start; gap: 2px; }
+    .tools::-webkit-scrollbar { display: none; }
+    .tools button { flex-direction: column; gap: 2px; height: 54px; padding: 0 4px; font-size: 12px; flex: 1 0 64px; justify-content: center; }
     .tools button.narrow-only { display: inline-flex; }
     .middle { flex-direction: column; }
     .thumbs {
@@ -442,5 +516,6 @@
     .props { order: 5; width: auto; padding: 6px 8px; border-left: 0; border-top: 1px solid var(--border); overflow-x: auto; overflow-y: hidden; }
     .props :global(.props) { flex-direction: row; flex-wrap: nowrap; align-items: center; width: max-content; }
     .props :global(.props select) { max-width: 140px; }
+    .props :global(.props .hint) { white-space: nowrap; }
   }
 </style>

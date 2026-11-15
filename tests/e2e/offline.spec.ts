@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { fixture, openInEditor } from './helpers';
+import { addText, downloadPdf, fixture, openInEditor } from './helpers';
+import { baseFonts } from '../pdf-inspect';
 
 // Requisito R6 do PLANO.md: depois da primeira visita, o site funciona sem internet.
 test('funciona offline depois da primeira visita', async ({ page, context, browserName }) => {
@@ -22,4 +23,10 @@ test('funciona offline depois da primeira visita', async ({ page, context, brows
   await page.locator('html[data-editor-ready="true"]').waitFor();
   await openInEditor(page, fixture('flat-table.pdf'));
   await expect(page.locator('#status')).toContainText('não tem campos');
+
+  // Fonte extra embutida no PDF sem internet (o arquivo .woff também está no cache)
+  await addText(page, 'Sem internet');
+  await page.getByRole('combobox', { name: 'Fonte' }).selectOption('hand');
+  const { bytes } = await downloadPdf(page);
+  expect((await baseFonts(bytes)).some((f) => f.startsWith('Caveat-Regular'))).toBe(true);
 });

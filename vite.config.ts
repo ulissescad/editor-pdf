@@ -62,7 +62,8 @@ export default defineConfig({
       },
       workbox: {
         // Tudo que o site precisa para funcionar offline, inclusive os arquivos de apoio do pdf.js
-        globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico,woff2,wasm,bcmap,pfb,ttf,icc}'],
+        // .woff: as fontes extras são embutidas no PDF a partir do WOFF (o WOFF2 fica para a tela)
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico,woff2,wasm,bcmap,pfb,ttf,icc}', '**/{open-sans,caveat,dancing-script}-*.woff'],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         cleanupOutdatedCaches: true,
       },

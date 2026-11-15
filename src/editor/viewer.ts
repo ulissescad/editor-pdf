@@ -64,10 +64,13 @@ export class PdfView {
       const states = ['found', 'notfound', 'wrapped', 'pending'] as const;
       cb.onFind({ state: states[e.state] ?? 'idle', current: e.matchesCount?.current ?? 0, total: e.matchesCount?.total ?? 0 });
     });
-    window.addEventListener('resize', this.onResize);
+    // O container muda de tamanho com a janela e também quando painéis laterais abrem ou fecham
+    this.resizeObserver = new ResizeObserver(() => this.onResize());
+    this.resizeObserver.observe(this.container);
     this.attachGestures();
   }
 
+  private resizeObserver: ResizeObserver | null = null;
   private onResize = () => {
     if (!this.viewer.pdfDocument) return;
     if (this.viewer.currentScaleValue === 'page-width') this.viewer.currentScaleValue = 'page-width';
@@ -81,7 +84,7 @@ export class PdfView {
   }
 
   destroy() {
-    window.removeEventListener('resize', this.onResize);
+    this.resizeObserver?.disconnect();
     this.setDocument(null);
   }
 
@@ -112,6 +115,20 @@ export class PdfView {
     const s = this.scaleOf(o.page);
     const [left, top] = this.toContainer(o.page, o.rect.x, o.rect.y);
     return { left, top, width: o.rect.w * s, height: o.rect.h * s, scale: s };
+  }
+
+  /** Centro da área visível, convertido para a página que está ali (para colocar objetos novos). */
+  visibleCenter(): { page: number; x: number; y: number } {
+    const r = this.container.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    let page = Math.max(0, this.viewer.currentPageNumber - 1);
+    for (let i = 0; i < this.pagesCount; i++) {
+      const d = this.pageView(i)?.div.getBoundingClientRect();
+      if (d && cy >= d.top && cy <= d.bottom) { page = i; break; }
+    }
+    const [x0, y0, x1, y1] = this.pageBounds(page);
+    const [x, y] = this.clientToPdf(page, cx, cy);
+    return { page, x: Math.min(Math.max(x, x0), x1), y: Math.min(Math.max(y, y0), y1) };
   }
 
   // ---------- navegação e zoom ----------

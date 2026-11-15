@@ -3,6 +3,7 @@
   import { pwa } from './lib/pwa.svelte';
   import Home from './routes/Home.svelte';
   import ToolSoon from './routes/ToolSoon.svelte';
+  import SignTool from './routes/SignTool.svelte';
   import UpdateToast from './components/UpdateToast.svelte';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
 
@@ -36,7 +37,9 @@
   </header>
 
   <main id="conteudo" tabindex="-1">
-    {#if router.current.name === 'tool'}
+    {#if router.current.name === 'tool' && router.current.id === 'assinar'}
+      <SignTool />
+    {:else if router.current.name === 'tool'}
       <ToolSoon id={router.current.id} />
     {:else}
       <Home />

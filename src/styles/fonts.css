@@ -13,3 +13,12 @@
 @import '@fontsource/cousine/latin-400-italic.css';
 @import '@fontsource/cousine/latin-700.css';
 @import '@fontsource/cousine/latin-700-italic.css';
+/* Fontes extras (embutidas no PDF quando usadas) e as cursivas da assinatura digitada */
+@import '@fontsource/open-sans/latin-400.css';
+@import '@fontsource/open-sans/latin-400-italic.css';
+@import '@fontsource/open-sans/latin-700.css';
+@import '@fontsource/open-sans/latin-700-italic.css';
+@import '@fontsource/caveat/latin-400.css';
+@import '@fontsource/caveat/latin-700.css';
+@import '@fontsource/dancing-script/latin-400.css';
+@import '@fontsource/dancing-script/latin-700.css';

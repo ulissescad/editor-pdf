@@ -36,7 +36,7 @@
     ondrop={onDrop}
   >
     <h1>Edite seus PDFs sem enviar nada para a internet</h1>
-    <p>Preencha formulários e escreva em qualquer PDF. Tudo acontece aqui no seu navegador, até offline.</p>
+    <p>Preencha formulários, assine e escreva em qualquer PDF. Tudo acontece aqui no seu navegador, até offline.</p>
     <button class="button primary big" onclick={() => input.click()}>
       <FileUp size={22} aria-hidden="true" />
       Abrir PDF para editar

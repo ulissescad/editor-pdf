@@ -10,3 +10,5 @@ public/pdfjs/
 *.pdf
 .DS_Store
 *.log
+# gerados por script (npm run fixtures)
+tests/fixtures/generated/

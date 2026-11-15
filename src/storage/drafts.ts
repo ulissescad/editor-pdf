@@ -1,6 +1,6 @@
 // Rascunhos automáticos no IndexedDB do próprio navegador (nada sai do aparelho).
 // Chave: SHA-256 do arquivo aberto. Guarda os bytes para poder continuar sem o arquivo original.
-import type { Obj } from '../editor/model';
+import type { ImageAsset, Obj } from '../editor/model';
 
 export interface Draft {
   hash: string;
@@ -8,34 +8,37 @@ export interface Draft {
   bytes: Uint8Array;                 // PDF base (sem os objetos do editor gravados)
   objects: Obj[];
   formValues: Record<string, unknown>;
+  images?: ImageAsset[];             // imagens e assinaturas usadas pelos objetos
   pages: number;
   updatedAt: number;
 }
 export type DraftSummary = Pick<Draft, 'hash' | 'name' | 'pages' | 'updatedAt'>;
 
 const DB = 'editor-pdf';
-const VERSION = 2;
+const VERSION = 3;
 const STORE = 'drafts';
+export const SIGNATURES = 'signatures';
 const MAX_AGE = 30 * 24 * 60 * 60 * 1000; // rascunhos com mais de 30 dias são apagados
 
-function openDb(): Promise<IDBDatabase> {
+export function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB, VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (db.objectStoreNames.contains('handoff')) db.deleteObjectStore('handoff'); // loja do M0, não usada mais
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'hash' });
+      if (!db.objectStoreNames.contains(SIGNATURES)) db.createObjectStore(SIGNATURES, { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-async function run<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T> | void): Promise<T | undefined> {
+export async function run<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T> | void, store = STORE): Promise<T | undefined> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, mode);
-    const req = fn(tx.objectStore(STORE));
+    const tx = db.transaction(store, mode);
+    const req = fn(tx.objectStore(store));
     tx.oncomplete = () => { db.close(); resolve(req ? req.result : undefined); };
     tx.onerror = () => { db.close(); reject(tx.error); };
     tx.onabort = () => { db.close(); reject(tx.error); };

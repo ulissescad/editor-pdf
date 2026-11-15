@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { FONTS, LINE, PAD, clamp, minHeight, type TextObj } from './model';
+  import { FONTS, LINE, PAD, isItalic, minHeight, type TextObj } from './model';
+  import { HANDLES, startDrag } from './drag';
   import type { EditorState } from './state.svelte';
 
   let { obj, ed }: { obj: TextObj; ed: EditorState } = $props();
@@ -113,49 +114,14 @@
     e.preventDefault();
     e.stopPropagation();
     if (!selected) ed.select(obj.id);
-    drag(e, handle ?? 'move', !handle && !onGrip);
+    // Arrastar move ou redimensiona; um toque sem arrastar entra na edição do texto
+    startDrag(e, {
+      ed, obj, scale: geo.scale, mode: handle ?? 'move',
+      minW: Math.max(12, obj.style.size), minH: minHeight(obj.style),
+      onTap: !handle && !onGrip ? (ev) => { caret = { x: ev.clientX, y: ev.clientY }; ed.startEditing(obj.id); } : undefined,
+    });
   }
 
-  // Arrastar move ou redimensiona; um toque sem arrastar entra na edição do texto
-  function drag(e: PointerEvent, mode: string, clickEdits: boolean) {
-    const s = geo.scale;
-    const [px0, py0, px1, py1] = ed.pageBounds(obj.page);
-    const start = { cx: e.clientX, cy: e.clientY, ...obj.rect };
-    const minW = Math.max(12, obj.style.size), minH = minHeight(obj.style);
-    const el = e.target as HTMLElement;
-    let moved = false;
-    el.setPointerCapture?.(e.pointerId);
-
-    const onMove = (ev: PointerEvent) => {
-      if (!moved && Math.hypot(ev.clientX - start.cx, ev.clientY - start.cy) < 4) return;
-      moved = true;
-      const dx = (ev.clientX - start.cx) / s, dy = (ev.clientY - start.cy) / s; // pt; dy > 0 = para baixo
-      if (mode === 'move') {
-        obj.rect.x = clamp(start.x + dx, px0, px1 - start.w);
-        obj.rect.y = clamp(start.y - dy, py0 + start.h, py1);
-        return;
-      }
-      let { x, y, w, h } = start;
-      const right = start.x + start.w, bottom = start.y - start.h;
-      if (mode.includes('e')) w = clamp(start.w + dx, minW, px1 - start.x);
-      if (mode.includes('w')) { x = clamp(start.x + dx, px0, right - minW); w = right - x; }
-      if (mode.includes('s')) h = clamp(start.h + dy, minH, start.y - py0);
-      if (mode.includes('n')) { y = clamp(start.y - dy, bottom + minH, py1); h = y - bottom; }
-      obj.rect = { x, y, w, h };
-    };
-    const onUp = (ev: PointerEvent) => {
-      el.removeEventListener('pointermove', onMove);
-      el.removeEventListener('pointerup', onUp);
-      el.removeEventListener('pointercancel', onUp);
-      if (moved) ed.commit();
-      else if (clickEdits && ev.type === 'pointerup') { caret = { x: ev.clientX, y: ev.clientY }; ed.startEditing(obj.id); }
-    };
-    el.addEventListener('pointermove', onMove);
-    el.addEventListener('pointerup', onUp);
-    el.addEventListener('pointercancel', onUp);
-  }
-
-  const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 </script>
 
 <!-- Arrastar/redimensionar com ponteiro; pelo teclado: setas movem, Delete apaga, Enter edita (Editor.svelte) -->
@@ -188,7 +154,7 @@
     style:font-family={FONTS[obj.style.font].css}
     style:font-size="{obj.style.size * geo.scale}px"
     style:font-weight={obj.style.bold ? 700 : 400}
-    style:font-style={obj.style.italic ? 'italic' : 'normal'}
+    style:font-style={isItalic(obj.style) ? 'italic' : 'normal'}
     style:color={obj.style.color}
     style:text-align={obj.style.align}
     style:line-height={LINE}

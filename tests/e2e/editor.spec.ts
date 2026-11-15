@@ -53,6 +53,29 @@ test('formatação: fonte, tamanho, negrito, alinhamento e cor vão para o PDF',
   expect(await baseFonts(bytes)).toContain('Times-Bold');
 });
 
+test('fontes extras: aparecem na tela e vão embutidas no PDF', async ({ page }) => {
+  await openFromHome(page, 'flat-table.pdf');
+  await addText(page, 'Conceição moderna');
+  const font = page.getByRole('combobox', { name: 'Fonte' });
+  await font.selectOption('modern');
+  await page.getByRole('button', { name: 'Negrito' }).click();
+  await page.getByRole('button', { name: 'Itálico' }).click();
+  const content = page.locator('.tbox .tcontent');
+  await expect(content).toHaveCSS('font-family', /Open Sans/);
+  await expect(content).toHaveCSS('font-style', 'italic');
+
+  // Caveat não tem itálico: o botão fica desativado e o texto fica reto (na tela e no PDF)
+  await font.selectOption('hand');
+  await expect(page.getByRole('button', { name: 'Itálico' })).toBeDisabled();
+  await expect(content).toHaveCSS('font-style', 'normal');
+  await font.selectOption('modern');
+  await expect(content).toHaveCSS('font-style', 'italic');
+
+  const { bytes } = await downloadPdf(page);
+  expect(await pdfText(bytes)).toContain('Conceição moderna');
+  expect((await baseFonts(bytes)).some((f) => f.startsWith('OpenSans-BoldItalic'))).toBe(true);
+});
+
 test('desfazer, refazer, duplicar e excluir', async ({ page }) => {
   await openFromHome(page, 'flat-table.pdf');
   await addText(page, 'Caixa');
@@ -121,7 +144,7 @@ test('PDF reeditável: reabrir o PDF baixado e continuar editando sem duplicar',
   expect(count(await pdfText(first.bytes), 'Versão um')).toBe(1);
 
   await openInEditor(page, { name: first.name, bytes: first.bytes });
-  await expect(page.locator('#status')).toContainText('1 texto(s) continuam editáveis');
+  await expect(page.locator('#status')).toContainText('1 objeto continua editável');
   await expect(page.locator('.tbox .tcontent')).toHaveText('Versão um');
 
   // edita: entra na caixa e acrescenta texto

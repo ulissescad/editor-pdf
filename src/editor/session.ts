@@ -1,7 +1,7 @@
 // O que a página inicial pede para o editor abrir (mesma aplicação, sem sair do navegador).
 export type PendingOpen =
-  | { kind: 'file'; bytes: Uint8Array; name: string }
-  | { kind: 'draft'; hash: string };
+  | { kind: 'file'; bytes: Uint8Array; name: string; then?: 'sign' }
+  | { kind: 'draft'; hash: string; then?: 'sign' };
 
 let pending: PendingOpen | null = null;
 

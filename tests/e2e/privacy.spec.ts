@@ -10,6 +10,13 @@ test('nenhuma requisição externa e nenhuma violação de CSP no fluxo completo
   await page.goto('./#/ferramenta/assinar');
   await openFromHome(page, 'form.pdf');
   await addText(page, 'teste');
+  // Assinatura digitada: as fontes cursivas também vêm do próprio site
+  await page.locator('nav.tools').getByRole('button', { name: 'Assinar', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Assinatura' });
+  await dialog.getByRole('tab', { name: 'Digitar' }).click();
+  await dialog.getByPlaceholder('Digite seu nome').fill('Teste');
+  await page.evaluate(() => document.fonts.ready);
+  await dialog.getByRole('button', { name: 'Usar' }).click();
   await downloadPdf(page); // carrega o pdf-lib sob demanda
 
   expect(net.requests.length).toBeGreaterThan(5);
