@@ -16,7 +16,7 @@
       <h1>{tool.name}</h1>
       <p>{tool.description}</p>
       <p class="soon">Esta ferramenta está em desenvolvimento e chega numa próxima versão do site.</p>
-      <a class="button primary" href="editor.html">Abrir um PDF no editor</a>
+      <a class="button primary" href="#/editor">Abrir um PDF no editor</a>
     </div>
   {:else}
     <div class="box">

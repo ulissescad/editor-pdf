@@ -1,24 +1,21 @@
 <script lang="ts">
   import { TOOLS } from '../lib/tools';
   import { hrefFor } from '../lib/routes';
-  import { putHandoff, isPdfFile } from '../lib/handoff';
+  import { requestOpen, readPdf } from '../editor/session';
+  import DraftList from '../components/DraftList.svelte';
   import FileUp from '@lucide/svelte/icons/file-up';
 
   let dragging = $state(false);
   let error = $state('');
   let input: HTMLInputElement;
 
-  // O arquivo escolhido aqui vai para o editor pelo IndexedDB do próprio navegador (não sai do aparelho).
+  // O arquivo é lido aqui e entregue ao editor na mesma página: não sai do aparelho.
   async function openInEditor(file: File | undefined) {
     error = '';
     if (!file) return;
-    if (!isPdfFile(file)) { error = 'Escolha um arquivo .pdf.'; return; }
-    try {
-      await putHandoff(file);
-      location.href = 'editor.html?abrir=1';
-    } catch {
-      location.href = 'editor.html'; // sem IndexedDB: abre o editor para escolher o arquivo lá
-    }
+    const bytes = await readPdf(file);
+    if (!bytes) { error = 'Escolha um arquivo .pdf.'; return; }
+    requestOpen({ kind: 'file', bytes, name: /\.pdf$/i.test(file.name) ? file.name : `${file.name}.pdf` });
   }
 
   function onDrop(e: DragEvent) {
@@ -49,6 +46,8 @@
     <p class="hint">ou arraste o arquivo para esta área</p>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
   </div>
+
+  <DraftList onopen={(hash) => requestOpen({ kind: 'draft', hash })} />
 </section>
 
 <section class="wrap" aria-labelledby="ferramentas">

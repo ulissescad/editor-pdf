@@ -1,0 +1,15 @@
+/* Fontes das caixas de texto, servidas pelo próprio site (OFL).
+   Têm as mesmas medidas das fontes padrão do PDF: Arimo = Helvetica/Arial, Tinos = Times, Cousine = Courier.
+   Só o subconjunto latino (cobre o português). */
+@import '@fontsource/arimo/latin-400.css';
+@import '@fontsource/arimo/latin-400-italic.css';
+@import '@fontsource/arimo/latin-700.css';
+@import '@fontsource/arimo/latin-700-italic.css';
+@import '@fontsource/tinos/latin-400.css';
+@import '@fontsource/tinos/latin-400-italic.css';
+@import '@fontsource/tinos/latin-700.css';
+@import '@fontsource/tinos/latin-700-italic.css';
+@import '@fontsource/cousine/latin-400.css';
+@import '@fontsource/cousine/latin-400-italic.css';
+@import '@fontsource/cousine/latin-700.css';
+@import '@fontsource/cousine/latin-700-italic.css';

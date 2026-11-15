@@ -7,7 +7,7 @@ _15/11/2026 · substitui o plano anterior (a pesquisa de funcionalidades está r
 | Marco | Situação |
 |---|---|
 | **M0 · Fundação** | ✅ Concluído em 15/11/2026. Vite 8 + Svelte 5 + TS; pdf.js 6.4 e @cantoo/pdf-lib 2.11 servidos pelo próprio site; CSP; PWA offline; deploy por GitHub Actions; 11 testes unitários e 30 de ponta a ponta (computador, Android e iPhone emulados), incluindo “zero requisições externas” e offline. Os testes de viabilidade passaram: **@cantoo/pdf-lib** grava texto, preserva formulários e anexa/recupera o projeto (base do item 1.6); **qpdf-wasm** protege com AES-256 e desbloqueia com a senha (base do 2.7). Achado: o pdf.js 6 mudou `getFieldObjects()`/`getAttachments()` para `Map` (já corrigido no editor v1). |
-| M1 · Editor no celular | Próximo |
+| M1 · Editor no celular | 🔧 Em andamento. Editor refeito em Svelte dentro do site (`#/editor`), com modelo de objetos, desfazer/refazer, pinça, miniaturas, busca, rascunho automático (IndexedDB), PDF reeditável (camada marcada + anexo `editor-projeto.json`), compartilhar e imprimir. Fontes Arimo/Tinos/Cousine servidas pelo site garantem as mesmas quebras de linha em qualquer aparelho. Falta: teste em celular real. |
 
 ## 0. Resumo
 

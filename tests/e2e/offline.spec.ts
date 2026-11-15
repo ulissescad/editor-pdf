@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fixture } from './helpers';
+import { fixture, openInEditor } from './helpers';
 
 // Requisito R6 do PLANO.md: depois da primeira visita, o site funciona sem internet.
 test('funciona offline depois da primeira visita', async ({ page, context, browserName }) => {
@@ -17,10 +17,9 @@ test('funciona offline depois da primeira visita', async ({ page, context, brows
   await page.reload();
   await expect(page.getByRole('button', { name: 'Abrir PDF para editar' })).toBeVisible();
 
-  // Editor offline: abre e renderiza um PDF (worker e WASM do pdf.js vêm do cache)
-  await page.goto('./editor.html');
-  await page.locator('html[data-ready="true"]').waitFor();
-  await page.locator('#fileInput').setInputFiles(fixture('flat-table.pdf'));
-  await page.locator('.pdfViewer .page canvas').first().waitFor();
+  // Editor offline: abre e renderiza um PDF (editor, worker, WASM e fontes vêm do cache)
+  await page.goto('./#/editor');
+  await page.locator('html[data-editor-ready="true"]').waitFor();
+  await openInEditor(page, fixture('flat-table.pdf'));
   await expect(page.locator('#status')).toContainText('não tem campos');
 });

@@ -9,3 +9,4 @@ public/pdfjs/
 # fixtures são gerados por script (npm run fixtures); nunca versionar PDFs reais
 *.pdf
 .DS_Store
+*.log

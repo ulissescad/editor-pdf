@@ -28,7 +28,7 @@ export default defineConfig({
     command: `npx vite build && npx vite preview --port ${PORT} --strictPort`,
     env: { BASE_PATH },
     url: `http://localhost:${PORT}${BASE_PATH}`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false, // sempre testa o build atual (um servidor antigo esconderia mudanças)
     timeout: 180_000,
   },
 });

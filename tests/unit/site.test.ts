@@ -34,6 +34,8 @@ describe('rotas por hash', () => {
     expect(parseHash('#/ferramenta/juntar')).toEqual({ name: 'tool', id: 'juntar' });
     expect(parseHash('#/ferramenta/juntar/')).toEqual({ name: 'tool', id: 'juntar' });
     expect(parseHash('#/qualquer-coisa')).toEqual({ name: 'home' });
+    expect(parseHash('#/editor')).toEqual({ name: 'editor' });
+    expect(hrefFor({ name: 'editor' })).toBe('#/editor');
   });
   it('gera e interpreta o mesmo endereço', () => {
     for (const t of TOOLS) {

@@ -75,7 +75,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: `${root}index.html`,
-        editor: `${root}editor.html`,
       },
     },
   },

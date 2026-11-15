@@ -5,10 +5,17 @@ os arquivos nunca saem do aparelho de quem usa. Funciona offline e pode ser inst
 
 O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
 
-## Situação atual (marco M0)
+## Situação atual (marco M1)
 
-- Página inicial com abertura de PDF e o catálogo de ferramentas (as ferramentas aparecem como “em breve” até os marcos M2–M5).
-- Editor v1 (`editor.html`): preencher formulários, caixas de texto com fonte, tamanho, cor, negrito e itálico, e baixar o PDF.
+- **Editor** (`#/editor`), pensado primeiro para o celular:
+  - preencher formulários (AcroForm e XFA);
+  - caixas de texto: mover, redimensionar, fonte, tamanho, negrito, itálico, alinhamento e cor;
+  - desfazer/refazer, copiar, colar e duplicar;
+  - pinça para zoom, miniaturas, busca e indicador de página;
+  - **rascunho automático** no próprio navegador (“Continuar de onde parou”);
+  - **PDF reeditável**: o PDF baixado, reaberto aqui, volta com os textos editáveis;
+  - baixar, compartilhar (WhatsApp, e-mail…) e imprimir.
+- Página inicial com o catálogo de ferramentas (as demais chegam nos marcos M2–M5).
 - Bibliotecas, fontes, CMaps e WebAssembly servidos pelo próprio site, com CSP que bloqueia qualquer outra origem.
 - Offline depois da primeira visita (service worker) e instalável.
 
@@ -47,9 +54,11 @@ Os PDFs de teste são gerados por script (`npm run fixtures`). **Não versione P
 ## Estrutura
 
 ```
-index.html, src/main.ts, src/App.svelte   página inicial e rotas (#/ferramenta/<id>)
-editor.html, src/legacy-editor/           editor v1 (será substituído no M1)
-src/lib/                                  catálogo de ferramentas, rotas, PWA, passagem de arquivo entre páginas
+index.html, src/main.ts, src/App.svelte   página inicial e rotas (#/editor, #/ferramenta/<id>)
+src/editor/                               editor: estado, objetos, visualizador (pdf.js), caixas de texto, painéis
+src/pdf/                                  abertura (pdf.js) e gravação/reabertura do PDF (pdf-lib)
+src/storage/                              rascunhos automáticos (IndexedDB)
+src/lib/                                  catálogo de ferramentas, rotas, PWA
 config/site.ts                            caminho base e política de segurança (CSP)
 tests/unit, tests/e2e, tests/fixtures     testes e geração de PDFs sintéticos
 .github/workflows/deploy.yml              testes + publicação no GitHub Pages
@@ -58,4 +67,5 @@ tests/unit, tests/e2e, tests/fixtures     testes e geração de PDFs sintéticos
 ## Bibliotecas
 
 pdf.js (Apache-2.0) · @cantoo/pdf-lib (MIT) · Svelte (MIT) · Lucide (ISC) · Workbox/vite-plugin-pwa (MIT) ·
+fontes Arimo, Tinos e Cousine (OFL, via Fontsource) ·
 qpdf-wasm (ISC, usado a partir do M5; hoje só nos testes de viabilidade)
