@@ -2,6 +2,7 @@
 import 'pdfjs-dist/web/pdf_viewer.css';
 import { loadViewerComponents, pdfjsLib, type PDFDocumentProxy } from '../pdf/pdfjs';
 import type { Obj } from './model';
+import { A4, clampView, localSize, toView, turnOf, viewSize, type PageGeo } from './geom';
 
 type Components = Awaited<ReturnType<typeof loadViewerComponents>>;
 type Viewer = InstanceType<Components['PDFViewer']>;
@@ -92,29 +93,40 @@ export class PdfView {
   get pagesCount() { return this.viewer.pagesCount; }
   private pageView(i: number) { return this.viewer.getPageView(i); }
   scaleOf(i: number): number { return this.pageView(i)?.viewport.scale ?? 1; }
-  pageBounds(i: number): number[] { return this.pageView(i)?.pdfPage?.view ?? [0, 0, 595, 842]; }
+  /** Caixa da página no PDF e giro com que ela aparece (o /Rotate da página). */
+  pageGeo(i: number): PageGeo {
+    const pv = this.pageView(i);
+    return pv?.pdfPage ? { view: pv.pdfPage.view, rotate: pv.viewport.rotation } : A4;
+  }
 
-  /** Ponto do PDF → coordenadas dentro do container (onde fica a camada de objetos). */
-  toContainer(i: number, x: number, y: number): [number, number] {
+  /** Ponto da página vista (pt, origem no canto superior esquerdo) → coordenadas dentro do container. */
+  viewToContainer(i: number, vx: number, vy: number): [number, number] {
     const pv = this.pageView(i);
     if (!pv) return [0, 0];
-    const [vx, vy] = pv.viewport.convertToViewportPoint(x, y);
-    return [this.viewerDiv.offsetLeft + pv.div.offsetLeft + pv.div.clientLeft + vx,
-            this.viewerDiv.offsetTop + pv.div.offsetTop + pv.div.clientTop + vy];
+    const s = pv.viewport.scale;
+    return [this.viewerDiv.offsetLeft + pv.div.offsetLeft + pv.div.clientLeft + vx * s,
+            this.viewerDiv.offsetTop + pv.div.offsetTop + pv.div.clientTop + vy * s];
   }
 
-  /** Ponto da tela (clientX/Y) → ponto do PDF na página i. */
-  clientToPdf(i: number, cx: number, cy: number): [number, number] {
+  /** Ponto da tela (clientX/Y) → ponto da página vista i. */
+  clientToView(i: number, cx: number, cy: number): [number, number] {
     const pv = this.pageView(i);
     const r = pv.div.getBoundingClientRect();
-    const [x, y] = pv.viewport.convertToPdfPoint(cx - r.left - pv.div.clientLeft, cy - r.top - pv.div.clientTop);
-    return [x, y];
+    const s = pv.viewport.scale;
+    return [(cx - r.left - pv.div.clientLeft) / s, (cy - r.top - pv.div.clientTop) / s];
   }
 
+  /**
+   * Onde desenhar o objeto: caixa na tela (left/top/width/height, já com o giro da página) e o conteúdo
+   * sem giro (cw × ch) com o giro que ele aparenta na tela (turn, horário).
+   */
   boxGeometry(o: Obj) {
     const s = this.scaleOf(o.page);
-    const [left, top] = this.toContainer(o.page, o.rect.x, o.rect.y);
-    return { left, top, width: o.rect.w * s, height: o.rect.h * s, scale: s };
+    const geo = this.pageGeo(o.page);
+    const v = toView(o.rect, geo);
+    const [left, top] = this.viewToContainer(o.page, v.x, v.y);
+    const local = localSize(o.rect, o.rot);
+    return { left, top, width: v.w * s, height: v.h * s, scale: s, turn: turnOf(o.rot, geo.rotate), cw: local.w * s, ch: local.h * s };
   }
 
   /** Centro da área visível, convertido para a página que está ali (para colocar objetos novos). */
@@ -126,9 +138,9 @@ export class PdfView {
       const d = this.pageView(i)?.div.getBoundingClientRect();
       if (d && cy >= d.top && cy <= d.bottom) { page = i; break; }
     }
-    const [x0, y0, x1, y1] = this.pageBounds(page);
-    const [x, y] = this.clientToPdf(page, cx, cy);
-    return { page, x: Math.min(Math.max(x, x0), x1), y: Math.min(Math.max(y, y0), y1) };
+    const [x, y] = this.clientToView(page, cx, cy);
+    const c = clampView({ x, y, w: 0, h: 0 }, viewSize(this.pageGeo(page)));
+    return { page, x: c.x, y: c.y };
   }
 
   // ---------- navegação e zoom ----------

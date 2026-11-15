@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { FONTS, LINE, PAD, isItalic, minHeight, type TextObj } from './model';
+  import { localSize } from './geom';
   import { HANDLES, startDrag } from './drag';
   import type { EditorState } from './state.svelte';
 
@@ -14,7 +15,7 @@
   const editing = $derived(ed.editingId === obj.id);
   const geo = $derived.by(() => {
     void ed.layoutTick; // recalcula quando o zoom ou a página mudam
-    return ed.view?.boxGeometry(obj) ?? { left: 0, top: 0, width: 0, height: 0, scale: 1 };
+    return ed.view?.boxGeometry(obj) ?? { left: 0, top: 0, width: 0, height: 0, scale: 1, turn: 0, cw: 0, ch: 0 };
   });
 
   onMount(() => {
@@ -73,10 +74,7 @@
   // Cresce a altura enquanto se digita (nunca encolhe sozinha)
   function autoGrow() {
     const need = content.scrollHeight / geo.scale;
-    if (need > obj.rect.h + 0.5) {
-      const bottom = ed.pageBounds(obj.page)[1];
-      obj.rect.h = Math.min(need, obj.rect.y - bottom);
-    }
+    if (need > localSize(obj.rect, obj.rot).h + 0.5) ed.growTo(obj, need);
   }
 
   function onInput() {
@@ -147,6 +145,10 @@
   <div
     bind:this={content}
     class="tcontent"
+    class:turned={geo.turn !== 0}
+    style:width={geo.turn ? `${geo.cw}px` : null}
+    style:height={geo.turn ? `${geo.ch}px` : null}
+    style:transform={geo.turn ? `translate(-50%, -50%) rotate(${geo.turn}deg)` : null}
     role="textbox"
     aria-multiline="true"
     tabindex="-1"
@@ -183,6 +185,8 @@
     outline: none; pointer-events: none; -webkit-user-select: text; user-select: text;
   }
   .tbox.editing .tcontent { pointer-events: auto; }
+  /* Página girada depois de escrever: o texto gira junto com ela */
+  .tcontent.turned { position: absolute; left: 50%; top: 50%; }
   .handle {
     position: absolute; width: 12px; height: 12px; background: #fff; border: 1.5px solid #2457d6; border-radius: 3px;
     touch-action: none;

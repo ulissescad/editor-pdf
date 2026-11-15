@@ -64,6 +64,8 @@ interface Base {
   id: string;
   page: number;      // 0-based
   rect: Rect;
+  /** Orientação do conteúdo (ver geom.ts): aparece em pé quando a página está girada `rot` graus. */
+  rot?: 0 | 90 | 180 | 270;
 }
 
 export interface TextObj extends Base {
@@ -118,25 +120,33 @@ export const minHeight = (style: Pick<TextStyle, 'size'>) => style.size * LINE +
 let counter = 0;
 export const newId = () => `o${Date.now().toString(36)}${(counter++).toString(36)}`;
 
-export function makeText(page: number, rect: Rect, style: TextStyle, text = ''): TextObj {
-  return { id: newId(), kind: 'text', page, rect: { ...rect, h: Math.max(rect.h, minHeight(style)) }, style: { ...style }, text };
+type Rot = Base['rot'];
+const withRot = (rot: Rot) => (rot ? { rot } : {});
+/** Retângulo girado 90/270: a largura do conteúdo é a altura do retângulo no PDF. */
+const sideways = (rot: Rot) => rot === 90 || rot === 270;
+
+export function makeText(page: number, rect: Rect, style: TextStyle, text = '', rot?: Rot): TextObj {
+  const r = { ...rect };
+  if (sideways(rot)) r.w = Math.max(r.w, minHeight(style)); else r.h = Math.max(r.h, minHeight(style));
+  return { id: newId(), kind: 'text', page, rect: r, style: { ...style }, text, ...withRot(rot) };
 }
 
-export function makeImage(page: number, rect: Rect, imageId: string, signature = false): ImageObj {
-  return { id: newId(), kind: 'image', page, rect: { ...rect }, imageId, ...(signature ? { signature: true } : {}) };
+export function makeImage(page: number, rect: Rect, imageId: string, signature = false, rot?: Rot): ImageObj {
+  return { id: newId(), kind: 'image', page, rect: { ...rect }, imageId, ...(signature ? { signature: true } : {}), ...withRot(rot) };
 }
 
-export function makeSymbol(page: number, rect: Rect, symbol: SymbolId, color: string): SymbolObj {
-  return { id: newId(), kind: 'symbol', page, rect: { ...rect }, symbol, color };
+export function makeSymbol(page: number, rect: Rect, symbol: SymbolId, color: string, rot?: Rot): SymbolObj {
+  return { id: newId(), kind: 'symbol', page, rect: { ...rect }, symbol, color, ...withRot(rot) };
 }
 
 export const FIELD_SIZE = 10;
 export const fieldMultiline = (h: number, size: number) => h >= size * LINE * 2 + 2;
 
-export function makeField(page: number, rect: Rect, type: FieldType, name: string, size = FIELD_SIZE): FieldObj {
+export function makeField(page: number, rect: Rect, type: FieldType, name: string, size = FIELD_SIZE, rot?: Rot): FieldObj {
+  const localH = sideways(rot) ? rect.w : rect.h;
   return {
     id: newId(), kind: 'field', page, rect: { ...rect }, type, name, value: '', size,
-    multiline: type === 'text' && fieldMultiline(rect.h, size),
+    multiline: type === 'text' && fieldMultiline(localH, size), ...withRot(rot),
   };
 }
 
@@ -195,6 +205,7 @@ const SYMBOLS: SymbolId[] = ['check', 'cross', 'dot', 'circle'];
 
 function validObj(o: Obj | null | undefined, images: Set<string>): boolean {
   if (!o || !Number.isInteger(o.page) || o.page < 0 || !o.rect || typeof o.id !== 'string') return false;
+  if (o.rot !== undefined && ![0, 90, 180, 270].includes(o.rot)) delete o.rot;
   switch (o.kind) {
     case 'text': return !!o.style && o.style.font in FONTS && typeof o.text === 'string';
     case 'image': return images.has(o.imageId);

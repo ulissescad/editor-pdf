@@ -5,7 +5,7 @@ os arquivos nunca saem do aparelho de quem usa. Funciona offline e pode ser inst
 
 O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
 
-## Situação atual (marco M2)
+## Situação atual (marco M3)
 
 - **Editor** (`#/editor`), pensado primeiro para o celular:
   - preencher formulários (AcroForm e XFA);
@@ -16,12 +16,17 @@ O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
   - **imagens**, **símbolos** (✓ ✗ ● ○) e **data de hoje** com um toque;
   - **detectar campos** em PDFs sem formulário (só regras geométricas, sem IA) e **criar campos** à mão:
     o PDF baixado sai com campos de formulário de verdade, já preenchidos;
+  - **organizar páginas** do documento aberto (reordenar, girar, excluir, duplicar, página em branco): o que você
+    escreveu acompanha as páginas; páginas giradas são editadas em pé;
   - desfazer/refazer, copiar, colar e duplicar;
   - pinça para zoom, miniaturas, busca e indicador de página;
   - **rascunho automático** no próprio navegador (“Continuar de onde parou”);
   - **PDF reeditável**: o PDF baixado, reaberto aqui, volta com textos, imagens, assinaturas e símbolos editáveis;
   - baixar, compartilhar (WhatsApp, e-mail…) e imprimir.
-- Página inicial com o catálogo de ferramentas: “Assinar PDF” já funciona; as demais chegam nos marcos M3–M5.
+- **Ferramentas prontas**: Assinar PDF, **Juntar PDF**, **Dividir PDF** (intervalos, uma página por arquivo ou
+  escolher páginas; vários arquivos saem num ZIP), **Organizar páginas**, **Imagens para PDF** (com a câmera do celular)
+  e **PDF para imagens** (JPG ou PNG). Os formulários continuam preenchíveis depois de juntar ou dividir, e PDFs
+  feitos no editor continuam reeditáveis. As demais ferramentas chegam no marco M5.
 - Bibliotecas, fontes, CMaps e WebAssembly servidos pelo próprio site, com CSP que bloqueia qualquer outra origem.
 - Offline depois da primeira visita (service worker) e instalável.
 
@@ -61,8 +66,10 @@ Os PDFs de teste são gerados por script (`npm run fixtures`). **Não versione P
 
 ```
 index.html, src/main.ts, src/App.svelte   página inicial e rotas (#/editor, #/ferramenta/<id>)
-src/editor/                               editor: estado, objetos, visualizador (pdf.js), caixas, assinatura, detecção de campos
-src/pdf/                                  abertura (pdf.js) e gravação/reabertura do PDF (pdf-lib)
+src/editor/                               editor: estado, objetos, visualizador (pdf.js), caixas, assinatura, detecção de campos,
+                                          páginas giradas (geom.ts)
+src/pdf/                                  abertura (pdf.js), gravação/reabertura do PDF e montagem de páginas (pdf-lib)
+src/tools/                                ferramentas: juntar, dividir, organizar, imagens ↔ PDF (carregadas sob demanda)
 src/storage/                              rascunhos automáticos e assinaturas guardadas (IndexedDB)
 src/lib/                                  catálogo de ferramentas, rotas, PWA
 config/site.ts                            caminho base e política de segurança (CSP)
@@ -73,5 +80,5 @@ tests/unit, tests/e2e, tests/fixtures     testes e geração de PDFs sintéticos
 ## Bibliotecas
 
 pdf.js (Apache-2.0) · @cantoo/pdf-lib (MIT) · Svelte (MIT) · Lucide (ISC) · Workbox/vite-plugin-pwa (MIT) ·
-@cantoo/fontkit (MIT) · fontes Arimo, Tinos, Cousine, Open Sans, Dancing Script, Great Vibes e Caveat (OFL, via Fontsource) ·
+@cantoo/fontkit (MIT) · fflate (MIT) · fontes Arimo, Tinos, Cousine, Open Sans, Dancing Script, Great Vibes e Caveat (OFL, via Fontsource) ·
 qpdf-wasm (ISC, usado a partir do M5; hoje só nos testes de viabilidade)

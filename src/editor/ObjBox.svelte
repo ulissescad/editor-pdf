@@ -12,7 +12,7 @@
   const editing = $derived(ed.editingId === obj.id);
   const geo = $derived.by(() => {
     void ed.layoutTick; // recalcula quando o zoom ou a página mudam
-    return ed.view?.boxGeometry(obj) ?? { left: 0, top: 0, width: 0, height: 0, scale: 1 };
+    return ed.view?.boxGeometry(obj) ?? { left: 0, top: 0, width: 0, height: 0, scale: 1, turn: 0, cw: 0, ch: 0 };
   });
   const handles = $derived(keepsAspect(obj) || (obj.kind === 'field' && obj.type === 'check') ? CORNERS : HANDLES);
   // Só objetos pequenos nas duas dimensões (símbolos, caixinhas) ganham área de toque extra;
@@ -101,6 +101,10 @@
     <div class="grip" title="Arraste para mover" aria-hidden="true">✥ {obj.kind === 'field' ? obj.name : 'mover'}</div>
   {/if}
 
+  <div class="inner" class:turned={geo.turn !== 0}
+    style:width={geo.turn ? `${geo.cw}px` : null}
+    style:height={geo.turn ? `${geo.ch}px` : null}
+    style:transform={geo.turn ? `translate(-50%, -50%) rotate(${geo.turn}deg)` : null}>
   {#if obj.kind === 'image'}
     <img src={ed.imageUrl(obj.imageId)} alt="" draggable="false">
   {:else if obj.kind === 'symbol'}
@@ -123,6 +127,7 @@
       style:font-family={FONTS.sans.css} style:font-size="{obj.size * geo.scale}px" style:padding="0 {2 * geo.scale}px"
       oninput={onInput} onblur={() => ed.editingId === obj.id && ed.stopEditing()} onkeydown={onKeydown}>
   {/if}
+  </div>
 
   {#if selected}
     {#each handles as h (h)}<span class="handle" data-h={h}></span>{/each}
@@ -141,6 +146,9 @@
   .obox.editing { cursor: text; }
   /* Objetos pequenos (símbolos, caixinhas): área de toque maior, invisível */
   @media (pointer: coarse) { .obox.small::before { content: ''; position: absolute; inset: -8px; } }
+  .inner { width: 100%; height: 100%; }
+  /* Página girada depois de colocar o objeto: ele gira junto com ela */
+  .inner.turned { position: absolute; left: 50%; top: 50%; }
   img, svg { display: block; width: 100%; height: 100%; pointer-events: none; user-select: none; -webkit-user-drag: none; }
   .fvalue {
     display: block; width: 100%; height: 100%; margin: 0; border: 0; background: transparent; color: #000;

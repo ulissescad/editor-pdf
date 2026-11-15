@@ -5,12 +5,14 @@
   import { takePending, isPdfFile, readPdf } from './session';
   import { canShareFiles, disposePrint, downloadPdf, printPdf, sharePdf } from './output';
   import { LINE, PAD, clamp, type ImageAsset } from './model';
+  import { viewSize } from './geom';
   import { loadImageFile } from './images';
   import TextBox from './TextBox.svelte';
   import ObjBox from './ObjBox.svelte';
   import SignatureDialog from './SignatureDialog.svelte';
   import PropsPanel from './PropsPanel.svelte';
   import Thumbnails from './Thumbnails.svelte';
+  import PageOrganizer from './PageOrganizer.svelte';
   import SearchBar from './SearchBar.svelte';
   import DraftList from '../components/DraftList.svelte';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -32,6 +34,7 @@
   import ImageIcon from '@lucide/svelte/icons/image';
   import FieldIcon from '@lucide/svelte/icons/rectangle-ellipsis';
   import Files from '@lucide/svelte/icons/files';
+  import LayoutGrid from '@lucide/svelte/icons/layout-grid';
   import FileUp from '@lucide/svelte/icons/file-up';
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
@@ -46,6 +49,7 @@
   let searchOpen = $state(false);
   let thumbsOpen = $state(false);
   let menuOpen = $state(false);
+  let organizeOpen = $state(false);
   let dragging = $state(false);
   let drawRect = $state<{ left: number; top: number; width: number; height: number } | null>(null);
   const canShare = canShareFiles();
@@ -122,8 +126,9 @@
     const tool = ed.tool;
     const view = ed.view;
     const page = Number(pageEl.dataset.pageNumber) - 1;
-    const [px0, py0, px1, py1] = view.pageBounds(page);
-    const [x0, y0] = view.clientToPdf(page, e.clientX, e.clientY);
+    // Tudo na página como se vê (geom.ts): funciona igual em páginas giradas
+    const [pw, ph] = viewSize(ed.geo(page));
+    const [x0, y0] = view.clientToView(page, e.clientX, e.clientY);
     if (e.pointerType === 'mouse' || e.pointerType === 'pen') e.preventDefault();
     if (ed.selectedId) ed.select(null);
     let rect: { x: number; y: number; w: number; h: number } | null = null;
@@ -131,12 +136,12 @@
     const onMove = (ev: PointerEvent) => {
       if (ev.pointerType === 'touch' || tool === 'stamp') return; // no toque, arrastar rola a página
       if (!rect && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < 6) return;
-      const [x1, y1] = view.clientToPdf(page, ev.clientX, ev.clientY);
-      const left = clamp(Math.min(x0, x1), px0, px1), right = clamp(Math.max(x0, x1), px0, px1);
-      const top = clamp(Math.max(y0, y1), py0, py1), bottom = clamp(Math.min(y0, y1), py0, py1);
-      rect = { x: left, y: top, w: right - left, h: top - bottom };
+      const [x1, y1] = view.clientToView(page, ev.clientX, ev.clientY);
+      const left = clamp(Math.min(x0, x1), 0, pw), right = clamp(Math.max(x0, x1), 0, pw);
+      const top = clamp(Math.min(y0, y1), 0, ph), bottom = clamp(Math.max(y0, y1), 0, ph);
+      rect = { x: left, y: top, w: right - left, h: bottom - top };
       const s = view.scaleOf(page);
-      const [l, t] = view.toContainer(page, rect.x, rect.y);
+      const [l, t] = view.viewToContainer(page, rect.x, rect.y);
       drawRect = { left: l, top: t, width: rect.w * s, height: rect.h * s };
     };
     const finish = (ev: PointerEvent) => {
@@ -150,15 +155,15 @@
         ed.addStamp(page, x0, y0);
       } else if (tool === 'field') {
         if (rect && rect.w >= 8 && rect.h >= 6) ed.addField(page, rect);
-        else if (ed.fieldType === 'check') ed.addField(page, { x: x0 - 6, y: y0 + 6, w: 12, h: 12 });
-        else ed.addField(page, { x: x0 - 2, y: y0 + 9, w: Math.max(40, Math.min(180, px1 - x0)), h: 18 });
+        else if (ed.fieldType === 'check') ed.addField(page, { x: x0 - 6, y: y0 - 6, w: 12, h: 12 });
+        else ed.addField(page, { x: x0 - 2, y: y0 - 9, w: Math.max(40, Math.min(180, pw - x0)), h: 18 });
       } else if (rect && rect.w >= 8) {
         ed.addText(page, rect);
       } else {
         // Caixa de uma linha, centralizada verticalmente no ponto tocado
         const h = ed.style.size * LINE + 2 * PAD;
-        const w = Math.max(40, Math.min(200, px1 - x0 - 2));
-        ed.addText(page, { x: x0 - PAD, y: y0 + h / 2, w, h });
+        const w = Math.max(40, Math.min(200, pw - x0 - 2));
+        ed.addText(page, { x: x0 - PAD, y: y0 - h / 2, w, h });
       }
     };
     window.addEventListener('pointermove', onMove);
@@ -211,7 +216,7 @@
 
   // ================= atalhos =================
   function onKeydown(e: KeyboardEvent) {
-    if (!ed.hasDoc) return;
+    if (!ed.hasDoc || organizeOpen || signOpen) return;
     const mod = e.ctrlKey || e.metaKey;
     const typing = (e.target as HTMLElement).closest?.('input, select, textarea, [contenteditable]:not([contenteditable="false"])');
     const k = e.key.toLowerCase();
@@ -226,7 +231,7 @@
     if (mod && k === 'd') { e.preventDefault(); ed.duplicate(); return; }
     if (!ed.selected) { if (e.key === 'Escape' && ed.tool !== 'select') setTool('select'); return; }
     const step = e.shiftKey ? 10 : 1;
-    const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] };
+    const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); ed.remove(); }
     else if (e.key === 'Escape') ed.select(null);
     else if (e.key === 'Enter') {
@@ -302,6 +307,7 @@
             {#if canShare}<button role="menuitem" onclick={() => { menuOpen = false; share(); }}><Share size={18} /> Compartilhar</button>{/if}
             <button role="menuitem" onclick={() => { menuOpen = false; print(); }}><Printer size={18} /> Imprimir</button>
             <button role="menuitem" onclick={() => { menuOpen = false; ed.view?.fitWidth(); }}><MoveHorizontal size={18} /> Ajustar à largura</button>
+            <button role="menuitem" onclick={() => { menuOpen = false; organizeOpen = true; }}><LayoutGrid size={18} /> Organizar páginas</button>
             <button role="menuitem" onclick={() => { menuOpen = false; fileInput.click(); }}><FileUp size={18} /> Abrir outro PDF</button>
           </div>
         {/if}
@@ -351,6 +357,9 @@
           <strong>Páginas</strong>
           <button class="icon" aria-label="Fechar páginas" onclick={() => (thumbsOpen = false)}><X size={20} /></button>
         </div>
+        <button class="organize" aria-label="Organizar páginas" onclick={() => { organizeOpen = true; if (!isWide) thumbsOpen = false; }}>
+          <LayoutGrid size={18} /> Organizar
+        </button>
         <Thumbnails {ed} onpick={() => { if (!isWide) thumbsOpen = false; }} />
       </aside>
     {/if}
@@ -402,6 +411,7 @@
 </div>
 
 {#if signOpen}<SignatureDialog onuse={useSignature} onclose={() => (signOpen = false)} />{/if}
+{#if organizeOpen && ed.hasDoc}<PageOrganizer {ed} onclose={() => (organizeOpen = false)} />{/if}
 
 <style>
   .editor {
@@ -481,6 +491,11 @@
     background: rgba(20, 24, 32, .75); color: #fff; font-size: 13px; font-weight: 600; pointer-events: none;
   }
   .thumbs { width: 168px; flex: none; overflow: auto; background: var(--surface); border-right: 1px solid var(--border); }
+  .organize {
+    display: flex; align-items: center; justify-content: center; gap: 6px; width: calc(100% - 16px); margin: 8px 8px 0; min-height: 40px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .organize:hover { border-color: var(--accent); color: var(--accent); }
   .props { width: 280px; flex: none; overflow: auto; padding: 12px; background: var(--surface); border-left: 1px solid var(--border); }
   .props :global(.props) { flex-direction: column; align-items: stretch; }
   .props :global(.props select) { max-width: none; }

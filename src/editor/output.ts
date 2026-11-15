@@ -1,8 +1,9 @@
 // Saídas do PDF final: baixar, compartilhar (WhatsApp, e-mail…) e imprimir.
 import { closePdf, openPdf } from '../pdf/pdfjs';
 
-export function downloadPdf(bytes: Uint8Array, name: string) {
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }));
+/** Baixa bytes como arquivo (PDF, imagem, ZIP…). */
+export function downloadBytes(bytes: Uint8Array, name: string, mime: string) {
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mime }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;
@@ -12,27 +13,31 @@ export function downloadPdf(bytes: Uint8Array, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
+export const downloadPdf = (bytes: Uint8Array, name: string) => downloadBytes(bytes, name, 'application/pdf');
+
 /** Compartilhamento nativo com arquivo (celulares e alguns navegadores de computador). */
-export function canShareFiles(): boolean {
+export function canShareFiles(files?: File[]): boolean {
   try {
-    const probe = new File([new Uint8Array(1)], 'x.pdf', { type: 'application/pdf' });
-    return !!navigator.canShare?.({ files: [probe] });
+    const probe = files ?? [new File([new Uint8Array(1)], 'x.pdf', { type: 'application/pdf' })];
+    return !!navigator.canShare?.({ files: probe });
   } catch {
     return false;
   }
 }
 
 /** Retorna false se a pessoa cancelou. */
-export async function sharePdf(bytes: Uint8Array, name: string): Promise<boolean> {
-  const file = new File([bytes as BlobPart], name, { type: 'application/pdf' });
+export async function shareFiles(files: File[], title?: string): Promise<boolean> {
   try {
-    await navigator.share({ files: [file], title: name });
+    await navigator.share({ files, title: title ?? files[0]?.name });
     return true;
   } catch (err) {
     if ((err as Error).name === 'AbortError') return false;
     throw err;
   }
 }
+
+export const sharePdf = (bytes: Uint8Array, name: string) =>
+  shareFiles([new File([bytes as BlobPart], name, { type: 'application/pdf' })], name);
 
 /**
  * Impressão: as páginas do PDF final são desenhadas como imagens (150 ppp) numa área só de impressão

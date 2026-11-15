@@ -29,4 +29,12 @@ test('funciona offline depois da primeira visita', async ({ page, context, brows
   await page.getByRole('combobox', { name: 'Fonte' }).selectOption('hand');
   const { bytes } = await downloadPdf(page);
   expect((await baseFonts(bytes)).some((f) => f.startsWith('Caveat-Regular'))).toBe(true);
+
+  // Ferramentas também funcionam offline (pdf-lib e fflate vêm do cache)
+  await page.goto('./#/ferramenta/dividir');
+  await page.locator('main input[type="file"]').first().setInputFiles(fixture('numbered.pdf'));
+  await page.getByRole('button', { name: /Dividir em 2 arquivos/ }).click();
+  const dl = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Baixar tudo (ZIP)' }).click();
+  expect((await dl).suggestedFilename()).toBe('numbered-dividido.zip');
 });

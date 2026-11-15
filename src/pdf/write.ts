@@ -10,6 +10,7 @@ import {
   type FieldObj, type ImageAsset, type Obj, type Project, type TextStyle,
 } from '../editor/model';
 import { SYMBOL_DEFS } from '../editor/symbols';
+import { contentMatrix, localSize, normRot } from '../editor/geom';
 
 const loadLib = () => import('@cantoo/pdf-lib');
 const MARK_KEY = 'EditorPDF';
@@ -56,7 +57,8 @@ export async function stampObjects(
   bytes: Uint8Array, items: StampInput[], project: Project, { assets = new Map(), loadFont }: StampOptions = {},
 ): Promise<{ bytes: Uint8Array; replaced: number; fields: number }> {
   const lib = await loadLib();
-  const { PDFDocument, StandardFonts, rgb, pushGraphicsState, popGraphicsState, rectangle, clip, endPath, PDFName, LineCapStyle } = lib;
+  const { PDFDocument, StandardFonts, rgb, pushGraphicsState, popGraphicsState, rectangle, clip, endPath, PDFName, LineCapStyle,
+    concatTransformationMatrix, degrees } = lib;
   const doc = await PDFDocument.load(bytes, { updateMetadata: false });
   const fonts = new Map<string, { font: PDFFont; chars: Set<number> }>();
   const images = new Map<string, PDFImage>();
@@ -88,13 +90,20 @@ export async function stampObjects(
   for (const { obj, lines, baseline = 0.9 } of items) {
     if (obj.page >= doc.getPageCount()) continue;
     if (obj.kind === 'field') { fieldObjs.push(obj); continue; }
+    if (obj.kind === 'text' && !obj.text.trim()) continue;
+    if (obj.kind === 'image' && !assets.has(obj.imageId)) continue;
     const page = doc.getPage(obj.page);
-    const { x, y, w, h } = obj.rect;
+    touched.add(page);
+    // Objeto girado (página girada): desenha no quadro do próprio conteúdo, levado ao lugar por uma matriz
+    const turned = normRot(obj.rot ?? 0) !== 0;
+    const local = localSize(obj.rect, obj.rot);
+    const { x, y, w, h } = turned ? { x: 0, y: local.h, ...local } : obj.rect;
+    if (turned) {
+      page.pushOperators(pushGraphicsState(), concatTransformationMatrix(...contentMatrix(obj.rect, obj.rot)));
+    }
 
     if (obj.kind === 'text') {
-      if (!obj.text.trim()) continue;
       const { font: f, chars } = await font(obj.style);
-      touched.add(page);
       const { size, color, align } = obj.style;
       const innerW = w - 2 * PAD;
       // Recorta no retângulo da caixa: o que não aparece na tela também não aparece no PDF
@@ -111,20 +120,17 @@ export async function stampObjects(
       }
       page.pushOperators(popGraphicsState());
     } else if (obj.kind === 'image') {
-      const asset = assets.get(obj.imageId);
-      if (!asset) continue;
+      const asset = assets.get(obj.imageId)!;
       let img = images.get(asset.id);
       if (!img) {
         img = asset.mime === 'image/png' ? await doc.embedPng(asset.bytes) : await doc.embedJpg(asset.bytes);
         images.set(asset.id, img);
       }
-      touched.add(page);
       page.drawImage(img, { x, y: y - h, width: w, height: h });
     } else if (obj.kind === 'symbol') {
       const def = SYMBOL_DEFS[obj.symbol];
       const side = Math.min(w, h);
       const color = rgb(...hexToRgb(obj.color));
-      touched.add(page);
       page.drawSvgPath(def.path, {
         x: x + (w - side) / 2, y: y - (h - side) / 2, scale: side / 24,
         ...(def.stroke
@@ -132,6 +138,7 @@ export async function stampObjects(
           : { color }),
       });
     }
+    if (turned) page.pushOperators(popGraphicsState());
   }
 
   // Marca a camada criada nesta gravação em cada página tocada
@@ -153,7 +160,11 @@ export async function stampObjects(
       let name = base;
       for (let n = 2; taken.has(name); n++) name = `${base}_${n}`;
       taken.add(name);
-      const box = { x: o.rect.x, y: o.rect.y - o.rect.h, width: o.rect.w, height: o.rect.h };
+      // Campo girado: o pdf-lib gira em torno da origem do conteúdo (a mesma da matriz dos objetos)
+      const local = localSize(o.rect, o.rot);
+      const [, , , , ox, oy] = contentMatrix(o.rect, o.rot);
+      const rotate = normRot(o.rot ?? 0);
+      const box = { x: ox, y: oy, width: local.w, height: local.h, ...(rotate ? { rotate: degrees(rotate) } : {}) };
       if (o.type === 'check') {
         const cb = form.createCheckBox(name);
         cb.addToPage(page, { ...box, borderWidth: 1, borderColor: rgb(0, 0, 0), backgroundColor: undefined });
@@ -187,36 +198,13 @@ export async function extractProject(bytes: Uint8Array): Promise<{ project: Proj
   const s = new TextDecoder('latin1').decode(bytes.subarray(Math.max(0, bytes.length - 4_000_000)));
   if (!s.includes(MARK_KEY) && !s.includes('EmbeddedFiles')) return null; // atalho: PDF comum
   const lib = await loadLib();
-  const { PDFDocument, PDFName, PDFArray, PDFDict, PDFHexString, PDFString, PDFRawStream, PDFRef, decodePDFRawStream } = lib;
+  const { PDFDocument, PDFName, PDFArray, PDFRef } = lib;
   let doc: PDFDocumentType;
   try { doc = await PDFDocument.load(bytes, { updateMetadata: false }); } catch { return null; }
 
   // 1) Anexo com o projeto
-  const names = doc.catalog.lookupMaybe(PDFName.of('Names'), PDFDict);
-  const ef = names?.lookupMaybe(PDFName.of('EmbeddedFiles'), PDFDict);
-  const arr = ef?.lookupMaybe(PDFName.of('Names'), PDFArray);
-  if (!arr) return null;
-  let parsed: ReturnType<typeof parseProject> = null;
-  let specRef: unknown = null;
-  for (let i = 0; i + 1 < arr.size(); i += 2) {
-    const key = arr.lookup(i);
-    const name = key instanceof PDFHexString || key instanceof PDFString ? key.decodeText() : '';
-    if (name !== PROJECT_FILE) continue;
-    const spec = arr.lookup(i + 1, PDFDict);
-    const file = spec.lookupMaybe(PDFName.of('EF'), PDFDict)?.lookup(PDFName.of('F'));
-    if (file instanceof PDFRawStream) parsed = parseProject(new TextDecoder().decode(decodePDFRawStream(file).decode()));
-    specRef = arr.get(i + 1);
-    arr.remove(i + 1);
-    arr.remove(i);
-    break;
-  }
+  const parsed = takeProject(lib, doc, true);
   if (!parsed) return null;
-
-  // Remove a referência ao anexo também da lista /AF do catálogo
-  const af = doc.catalog.lookupMaybe(PDFName.of('AF'), PDFArray);
-  if (af && specRef instanceof PDFRef) {
-    for (let i = af.size() - 1; i >= 0; i--) if (af.get(i) === specRef) af.remove(i);
-  }
 
   // 2) Remove a camada de objetos de cada página
   const isMarked = (ref: unknown) => {
@@ -233,4 +221,41 @@ export async function extractProject(bytes: Uint8Array): Promise<{ project: Proj
   }
 
   return { ...parsed, base: await doc.save({ updateFieldAppearances: false }) };
+}
+
+type Lib = typeof import('@cantoo/pdf-lib');
+
+/**
+ * Lê o projeto do editor anexado ao PDF (editor-projeto.json). Com `remove`, tira o anexo do documento
+ * (para regravar sem duplicar). Devolve null se o PDF não tiver projeto.
+ */
+export function takeProject(lib: Lib, doc: PDFDocumentType, remove: boolean): ReturnType<typeof parseProject> {
+  const { PDFName, PDFArray, PDFDict, PDFHexString, PDFString, PDFRawStream, PDFRef, decodePDFRawStream } = lib;
+  const names = doc.catalog.lookupMaybe(PDFName.of('Names'), PDFDict);
+  const ef = names?.lookupMaybe(PDFName.of('EmbeddedFiles'), PDFDict);
+  const arr = ef?.lookupMaybe(PDFName.of('Names'), PDFArray);
+  if (!arr) return null;
+  for (let i = 0; i + 1 < arr.size(); i += 2) {
+    const key = arr.lookup(i);
+    const name = key instanceof PDFHexString || key instanceof PDFString ? key.decodeText() : '';
+    if (name !== PROJECT_FILE) continue;
+    let parsed: ReturnType<typeof parseProject> = null;
+    try {
+      const spec = arr.lookup(i + 1, PDFDict);
+      const file = spec.lookupMaybe(PDFName.of('EF'), PDFDict)?.lookup(PDFName.of('F'));
+      if (file instanceof PDFRawStream) parsed = parseProject(new TextDecoder().decode(decodePDFRawStream(file).decode()));
+    } catch { parsed = null; }
+    if (remove && parsed) {
+      const specRef = arr.get(i + 1);
+      arr.remove(i + 1);
+      arr.remove(i);
+      // Remove a referência ao anexo também da lista /AF do catálogo
+      const af = doc.catalog.lookupMaybe(PDFName.of('AF'), PDFArray);
+      if (af && specRef instanceof PDFRef) {
+        for (let j = af.size() - 1; j >= 0; j--) if (af.get(j) === specRef) af.remove(j);
+      }
+    }
+    return parsed;
+  }
+  return null;
 }

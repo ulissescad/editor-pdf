@@ -1,16 +1,18 @@
 // Estado do editor: documento aberto, objetos, seleção, ferramenta, histórico e rascunho automático.
 import { History } from './history';
 import {
-  DEFAULT_STYLE, FIELD_SIZE, PAD, clampRect, cloneObj, fieldMultiline, isEmpty, makeField, makeImage, makeSymbol, makeText,
-  minHeight, newId, rectAround, today, uniqueName,
-  type FieldObj, type FieldType, type ImageAsset, type Obj, type Rect, type SymbolId, type TextStyle,
+  DEFAULT_STYLE, FIELD_SIZE, PAD, cloneObj, fieldMultiline, isEmpty, makeField, makeImage, makeSymbol, makeText,
+  minHeight, newId, today, uniqueName,
+  type FieldObj, type FieldType, type ImageAsset, type Obj, type SymbolId, type TextStyle,
 } from './model';
 import { SYMBOL_SIZE } from './symbols';
+import { A4, clampView, fromView, localSize, normRot, toView, turnOf, viewSize, type PageGeo, type VRect } from './geom';
 import type { PdfView, FindResult } from './viewer';
 import { closePdf, countFields, formValues, onFormChange, openPdf, restoreFormValues, type PDFDocumentProxy } from '../pdf/pdfjs';
 import { extractProject, projectFor, stampObjects, type StampInput } from '../pdf/write';
 import { baselineFactor, cssFont, fontsReady, measureLines } from './measure';
 import { deleteDraft, getDraft, saveDraft, sha256 } from '../storage/drafts';
+import type { PageSpec } from '../pdf/plan';
 
 export type Tool = 'select' | 'text' | 'stamp' | 'field';
 export type Stamp = SymbolId | 'date';
@@ -174,17 +176,48 @@ export class EditorState {
   #toast(kind: StatusKind, text: string) { this.status = { kind, text }; }
   dismissStatus() { this.status = null; }
 
-  pageBounds(page: number) { return this.view?.pageBounds(page) ?? [0, 0, 595, 842]; }
+  /** Caixa e giro da página (geom.ts). */
+  geo(page: number): PageGeo { return this.view?.pageGeo(page) ?? A4; }
 
-  addText(page: number, rect: Rect): Obj {
-    const o = makeText(page, clampRect(rect, this.pageBounds(page)), this.style);
+  /** Retângulo da página vista → retângulo do PDF, dentro da página, e o giro para o objeto aparecer em pé. */
+  #place(page: number, v: VRect) {
+    const g = this.geo(page);
+    return { rect: fromView(clampView(v, viewSize(g)), g), rot: normRot(g.rotate) || undefined };
+  }
+
+  /** Muda a caixa do objeto na página vista (mantendo dentro da página). */
+  setViewRect(o: Obj, v: VRect) {
+    const g = this.geo(o.page);
+    o.rect = fromView(clampView(v, viewSize(g)), g);
+  }
+
+  /** Aumenta a altura do conteúdo (texto que cresce), para o lado de baixo do próprio conteúdo. */
+  growTo(o: Obj, h: number) {
+    const g = this.geo(o.page);
+    const v = toView(o.rect, g);
+    const d = h - localSize(o.rect, o.rot).h;
+    if (d <= 0) return;
+    const [pw, ph] = viewSize(g);
+    switch (turnOf(o.rot, g.rotate)) {
+      case 0: v.h = Math.min(v.h + d, ph - v.y); break;
+      case 180: { const top = Math.max(0, v.y - d); v.h += v.y - top; v.y = top; break; }
+      case 90: { const left = Math.max(0, v.x - d); v.w += v.x - left; v.x = left; break; }
+      case 270: v.w = Math.min(v.w + d, pw - v.x); break;
+    }
+    o.rect = fromView(v, g);
+  }
+
+  /** Caixa de texto nova num retângulo da página vista. */
+  addText(page: number, v: VRect): Obj {
+    const { rect, rot } = this.#place(page, { ...v, h: Math.max(v.h, minHeight(this.style)) });
+    const o = makeText(page, rect, this.style, '', rot);
     this.objects.push(o);
     this.selectedId = o.id;
     this.editingId = o.id;
     return o;
   }
 
-  /** Onde colocar um objeto novo: no centro da parte visível da página atual. */
+  /** Onde colocar um objeto novo: no centro da parte visível da página atual (página vista). */
   visibleCenter() {
     return this.view?.visibleCenter() ?? { page: 0, x: 297, y: 421 };
   }
@@ -202,35 +235,38 @@ export class EditorState {
   addImage(asset: ImageAsset, signature = false, maxW = signature ? 160 : 260) {
     this.images.set(asset.id, asset);
     const { page, x, y } = this.visibleCenter();
-    const b = this.pageBounds(page);
+    const [pw] = viewSize(this.geo(page));
     const natural = asset.w * 0.75 / (signature ? 3 : 1); // px → pt (assinaturas são geradas em 3×)
-    const w = Math.min(maxW, natural, (b[2] - b[0]) * 0.8);
+    const w = Math.min(maxW, natural, pw * 0.8);
     const h = w * asset.h / asset.w;
     this.tool = 'select';
-    return this.#add(makeImage(page, rectAround(x, y, w, h, b), asset.id, signature));
+    const { rect, rot } = this.#place(page, { x: x - w / 2, y: y - h / 2, w, h });
+    return this.#add(makeImage(page, rect, asset.id, signature, rot));
   }
 
-  /** Ferramenta Símbolos: coloca o símbolo (ou a data de hoje) centrado no ponto tocado. */
+  /** Ferramenta Símbolos: coloca o símbolo (ou a data de hoje) centrado no ponto tocado (página vista). */
   addStamp(page: number, x: number, y: number) {
-    const b = this.pageBounds(page);
     if (this.stamp === 'date') {
       const text = today();
       const ctx = document.createElement('canvas').getContext('2d')!;
       ctx.font = cssFont(this.style, this.style.size);
       const w = Math.ceil(ctx.measureText(text).width) + 2 * PAD + 2;
       const h = minHeight(this.style);
-      return this.#add(makeText(page, rectAround(x + w / 2 - PAD, y, w, h, b), this.style, text));
+      const { rect, rot } = this.#place(page, { x: x - PAD, y: y - h / 2, w, h });
+      return this.#add(makeText(page, rect, this.style, text, rot));
     }
     const s = this.symbolSize;
-    return this.#add(makeSymbol(page, rectAround(x, y, s, s, b), this.stamp, this.symbolColor));
+    const { rect, rot } = this.#place(page, { x: x - s / 2, y: y - s / 2, w: s, h: s });
+    return this.#add(makeSymbol(page, rect, this.stamp, this.symbolColor, rot));
   }
 
   #fieldNames() { return new Set(this.objects.filter((o): o is FieldObj => o.kind === 'field').map((o) => o.name)); }
 
-  /** Ferramenta Campos: cria um campo (texto ou caixa de seleção) no retângulo. */
-  addField(page: number, rect: Rect, type = this.fieldType): Obj {
+  /** Ferramenta Campos: cria um campo (texto ou caixa de seleção) num retângulo da página vista. */
+  addField(page: number, v: VRect, type = this.fieldType): Obj {
     const name = uniqueName(type === 'check' ? 'opcao' : 'campo', this.#fieldNames());
-    return this.#add(makeField(page, clampRect(rect, this.pageBounds(page)), type, name));
+    const { rect, rot } = this.#place(page, v);
+    return this.#add(makeField(page, rect, type, name, FIELD_SIZE, rot));
   }
 
   /** Detecta campos nas páginas (PDF sem formulário) e cria os campos sugeridos. */
@@ -243,7 +279,8 @@ export class EditorState {
       if (this.selectedId) this.select(null);
       const taken = this.#fieldNames();
       for (const f of found) {
-        this.objects.push(makeField(f.page, f.rect, f.type, uniqueName(f.name, taken), f.size ?? FIELD_SIZE));
+        const rot = normRot(this.geo(f.page).rotate) || undefined;
+        this.objects.push(makeField(f.page, f.rect, f.type, uniqueName(f.name, taken), f.size ?? FIELD_SIZE, rot));
       }
       this.commit();
       this.tool = 'field';
@@ -296,7 +333,8 @@ export class EditorState {
     const o = cloneObj($state.snapshot(src) as Obj);
     o.id = newId();
     o.page = Math.min(o.page, this.pages - 1);
-    o.rect = clampRect({ ...o.rect, x: o.rect.x + 12, y: o.rect.y - 12 }, this.pageBounds(o.page));
+    const v = toView(o.rect, this.geo(o.page));
+    this.setViewRect(o, { ...v, x: v.x + 12, y: v.y + 12 });
     if (o.kind === 'field') o.name = uniqueName(o.name, this.#fieldNames());
     this.objects.push(o);
     this.selectedId = o.id;
@@ -310,7 +348,7 @@ export class EditorState {
     const s = this.selected;
     if (s?.kind === 'text') {
       Object.assign(s.style, patch);
-      if (s.rect.h < minHeight(s.style)) s.rect.h = minHeight(s.style);
+      this.growTo(s, minHeight(s.style));
       this.commit();
     }
   }
@@ -335,16 +373,18 @@ export class EditorState {
     }
     if (patch.type && patch.type !== s.type) {
       patch.value = '';
-      patch.multiline = patch.type === 'text' && fieldMultiline(s.rect.h, s.size);
+      patch.multiline = patch.type === 'text' && fieldMultiline(localSize(s.rect, s.rot).h, s.size);
     }
     Object.assign(s, patch);
     this.commit();
   }
 
+  /** Move o selecionado (pt na página vista; dy > 0 = para baixo). */
   nudge(dx: number, dy: number) {
     const s = this.selected;
     if (!s) return;
-    s.rect = clampRect({ ...s.rect, x: s.rect.x + dx, y: s.rect.y + dy }, this.pageBounds(s.page));
+    const v = toView(s.rect, this.geo(s.page));
+    this.setViewRect(s, { ...v, x: v.x + dx, y: v.y + dy });
     this.commit();
   }
 
@@ -392,6 +432,51 @@ export class EditorState {
     } catch (err) {
       console.warn('Rascunho não salvo', err);
       this.saving = 'error';
+    }
+  }
+
+  // ================= páginas =================
+  /**
+   * Reorganiza as páginas do documento aberto (ordem, giro, exclusão, duplicação, páginas em branco).
+   * Os valores dos formulários entram no PDF base, e os objetos acompanham as páginas.
+   * O aviso oferece “Desfazer” (volta ao documento anterior).
+   */
+  async applyPages(specs: PageSpec[]) {
+    if (!this.doc || !this.#base) return;
+    if (this.editingId) this.stopEditing();
+    if (this.selectedId) this.select(null);
+    this.busy = 'Reorganizando as páginas…';
+    const prev = {
+      base: this.#base, objects: $state.snapshot(this.objects) as Obj[], values: formValues(this.doc), images: this.#usedImages(),
+    };
+    try {
+      const filled = await this.doc.saveDocument();
+      const [{ assemble }, { remapObjects }] = await Promise.all([import('../pdf/pages'), import('../pdf/plan')]);
+      const bytes = await assemble([filled], specs);
+      await this.#load(bytes, this.fileName, this.#hash, remapObjects([prev.objects], specs), {}, prev.images);
+      this.saving = 'pending';
+      await this.flushSave();
+      this.status = {
+        kind: 'ok', text: `Páginas reorganizadas: agora são ${this.pages}.`,
+        action: { label: 'Desfazer', run: () => this.#restorePages(prev) },
+      };
+    } catch (err) {
+      console.error(err);
+      this.status = { kind: 'err', text: 'Não foi possível reorganizar as páginas deste PDF.' };
+    } finally {
+      this.busy = null;
+    }
+  }
+
+  async #restorePages(prev: { base: Uint8Array; objects: Obj[]; values: Record<string, unknown>; images: ImageAsset[] }) {
+    this.busy = 'Desfazendo…';
+    try {
+      await this.#load(prev.base, this.fileName, this.#hash, prev.objects, prev.values, prev.images);
+      this.saving = 'pending';
+      await this.flushSave();
+      this.status = { kind: 'info', text: 'As páginas voltaram como estavam.' };
+    } finally {
+      this.busy = null;
     }
   }
 

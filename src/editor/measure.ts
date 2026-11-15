@@ -42,6 +42,17 @@ export interface MeasuredLine { index: number; text: string }
  * Linhas em branco (Enter duplo) são preservadas pelo índice.
  */
 export function measureLines(content: HTMLElement, style: TextStyle, scale: number): MeasuredLine[] {
+  // Texto girado (página girada): mede sem o giro, que não muda as quebras de linha
+  const transform = content.style.transform;
+  if (transform) content.style.transform = 'none';
+  try {
+    return readLines(content, style, scale);
+  } finally {
+    if (transform) content.style.transform = transform;
+  }
+}
+
+function readLines(content: HTMLElement, style: TextStyle, scale: number): MeasuredLine[] {
   content.scrollTop = 0;
   const lineH = style.size * LINE * scale;
   const top0 = content.getBoundingClientRect().top + content.clientTop + PAD * scale;

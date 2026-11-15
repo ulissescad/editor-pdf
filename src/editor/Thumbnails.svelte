@@ -31,6 +31,8 @@
   }
 </script>
 
+<!-- Documento novo (ex.: depois de organizar as páginas): miniaturas desenhadas de novo -->
+{#key ed.doc}
 <ol class="thumbs" aria-label="Páginas">
   {#each { length: ed.pages } as _, i (i)}
     <li>
@@ -42,6 +44,7 @@
     </li>
   {/each}
 </ol>
+{/key}
 
 <style>
   .thumbs { list-style: none; margin: 0; padding: 12px; display: grid; gap: 12px; justify-items: center; }

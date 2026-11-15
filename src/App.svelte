@@ -6,10 +6,20 @@
   import SignTool from './routes/SignTool.svelte';
   import UpdateToast from './components/UpdateToast.svelte';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
+  import type { Component } from 'svelte';
 
   const version = __APP_VERSION__;
   // O editor (com o pdf.js) só é baixado quando é aberto
   const loadEditor = () => import('./editor/Editor.svelte');
+  // Ferramentas prontas, carregadas sob demanda (cada uma traz o pdf.js e/ou o pdf-lib só quando usada)
+  const TOOL_VIEWS: Record<string, () => Promise<{ default: Component }>> = {
+    juntar: () => import('./tools/MergeTool.svelte'),
+    dividir: () => import('./tools/SplitTool.svelte'),
+    organizar: () => import('./tools/OrganizeTool.svelte'),
+    'imagens-para-pdf': () => import('./tools/ImagesTool.svelte'),
+    'pdf-para-imagens': () => import('./tools/PdfToImagesTool.svelte'),
+  };
+  const toolView = $derived(router.current.name === 'tool' ? TOOL_VIEWS[router.current.id] : undefined);
 </script>
 
 {#if router.current.name === 'editor'}
@@ -39,6 +49,16 @@
   <main id="conteudo" tabindex="-1">
     {#if router.current.name === 'tool' && router.current.id === 'assinar'}
       <SignTool />
+    {:else if toolView}
+      {#key toolView}
+        {#await toolView()}
+          <p class="loading">Carregando a ferramenta…</p>
+        {:then { default: View }}
+          <View />
+        {:catch}
+          <p class="loading">Não foi possível carregar a ferramenta. Recarregue a página.</p>
+        {/await}
+      {/key}
     {:else if router.current.name === 'tool'}
       <ToolSoon id={router.current.id} />
     {:else}

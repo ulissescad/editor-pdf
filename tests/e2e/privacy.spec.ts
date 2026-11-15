@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { addText, downloadPdf, openFromHome, watchNetwork } from './helpers';
+import { addText, downloadPdf, fixture, openFromHome, watchNetwork } from './helpers';
 
 // Requisito R3 do PLANO.md: o site resolve tudo internamente.
 // Qualquer requisição para fora do próprio site (CDN, fontes, analytics…) reprova o build.
@@ -20,6 +20,27 @@ test('nenhuma requisição externa e nenhuma violação de CSP no fluxo completo
   await downloadPdf(page); // carrega o pdf-lib sob demanda
 
   expect(net.requests.length).toBeGreaterThan(5);
+  expect(net.external()).toEqual([]);
+  expect(net.cspErrors).toEqual([]);
+});
+
+test('ferramentas de páginas também não fazem requisições externas', async ({ page }) => {
+  const net = watchNetwork(page);
+  await page.goto('./#/ferramenta/juntar');
+  await page.locator('main input[type="file"]').first().setInputFiles([fixture('numbered.pdf'), fixture('letters.pdf')]);
+  await page.getByRole('button', { name: 'Juntar 2 PDFs' }).click();
+  await expect(page.getByText('Pronto!')).toBeVisible();
+  await page.goto('./#/ferramenta/dividir');
+  await page.locator('main input[type="file"]').first().setInputFiles(fixture('numbered.pdf'));
+  await page.getByRole('button', { name: /Dividir em/ }).click();
+  const dl = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Baixar tudo (ZIP)' }).click(); // carrega o fflate
+  await dl;
+  await page.goto('./#/ferramenta/pdf-para-imagens');
+  await page.locator('main input[type="file"]').first().setInputFiles(fixture('letters.pdf'));
+  await page.getByRole('button', { name: /Converter/ }).click();
+  await expect(page.getByText('Pronto!')).toBeVisible();
+
   expect(net.external()).toEqual([]);
   expect(net.cspErrors).toEqual([]);
 });

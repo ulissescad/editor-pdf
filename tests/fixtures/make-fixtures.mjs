@@ -1,6 +1,6 @@
 // Gera os PDFs de teste em tests/fixtures/generated/ (ignorados pelo git).
 // Nenhum documento real é usado: tudo é sintético.
-import { PDFDocument, StandardFonts, concatTransformationMatrix, popGraphicsState, pushGraphicsState, rgb } from '@cantoo/pdf-lib';
+import { PDFDocument, StandardFonts, concatTransformationMatrix, degrees, popGraphicsState, pushGraphicsState, rgb } from '@cantoo/pdf-lib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
@@ -146,12 +146,42 @@ export function makePng(w = 120, h = 60) {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
+/** PDF com páginas numeradas (“Pagina 1”…), para conferir ordem, giro e exclusão. A página 3 é paisagem. */
+export async function makeNumbered(n = 5, label = 'Pagina') {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.HelveticaBold);
+  for (let i = 1; i <= n; i++) {
+    const page = doc.addPage(i === 3 ? [842, 595] : [595, 842]);
+    page.drawText(`${label} ${i}`, { x: 60, y: page.getHeight() - 100, size: 36, font });
+  }
+  return doc.save();
+}
+
+/** PDF com a página 1 girada 90° (/Rotate), como muitos PDFs “paisagem” e digitalizações. */
+export async function makeRotated() {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const page = doc.addPage([595, 842]);
+  page.drawText('Pagina girada', { x: 60, y: 760, size: 24, font });
+  page.setRotation(degrees(90));
+  const p2 = doc.addPage([595, 842]);
+  p2.drawText('Pagina normal', { x: 60, y: 760, size: 24, font });
+  return doc.save();
+}
+
+/** PNG “paisagem” maior (para imagens → PDF). */
+export const makeWidePng = () => makePng(300, 120);
+
 export async function writeAll() {
   mkdirSync(FIXTURES_DIR, { recursive: true });
   writeFileSync(`${FIXTURES_DIR}form.pdf`, await makeForm());
   writeFileSync(`${FIXTURES_DIR}flat-table.pdf`, await makeFlatTable());
   writeFileSync(`${FIXTURES_DIR}pei-like.pdf`, await makePeiLike());
   writeFileSync(`${FIXTURES_DIR}image.png`, makePng());
+  writeFileSync(`${FIXTURES_DIR}numbered.pdf`, await makeNumbered());
+  writeFileSync(`${FIXTURES_DIR}letters.pdf`, await makeNumbered(2, 'Letra'));
+  writeFileSync(`${FIXTURES_DIR}rotated.pdf`, await makeRotated());
+  writeFileSync(`${FIXTURES_DIR}wide.png`, makeWidePng());
   return FIXTURES_DIR;
 }
 

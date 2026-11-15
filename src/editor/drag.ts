@@ -1,6 +1,8 @@
 // Arrastar para mover e alças para redimensionar, comum a todos os objetos.
 // Um toque sem arrastar chama onTap (entrar na edição, marcar a caixa de seleção…).
+// As contas são feitas na página como se vê (geom.ts), então funcionam igual em páginas giradas.
 import { clamp, type Obj } from './model';
+import { fromView, toView, turnOf, viewSize } from './geom';
 import type { EditorState } from './state.svelte';
 
 export const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
@@ -11,27 +13,32 @@ export interface DragOptions {
   obj: Obj;
   scale: number;            // px por pt na tela
   mode: string;             // 'move' ou uma alça (n, ne, e…)
-  minW: number;
+  minW: number;             // tamanho mínimo do conteúdo (sem giro), em pt
   minH: number;
   aspect?: boolean;         // cantos mantêm a proporção
   onTap?: (ev: PointerEvent) => void;
 }
 
 export function startDrag(e: PointerEvent, { ed, obj, scale: s, mode, minW, minH, aspect, onTap }: DragOptions) {
-  const [px0, py0, px1, py1] = ed.pageBounds(obj.page);
-  const start = { cx: e.clientX, cy: e.clientY, ...obj.rect };
-  const right = start.x + start.w, bottom = start.y - start.h;
+  const geo = ed.geo(obj.page);
+  const [pw, ph] = viewSize(geo);
+  // Conteúdo deitado na tela: a largura mínima dele vira altura mínima da caixa
+  if (turnOf(obj.rot, geo.rotate) % 180) [minW, minH] = [minH, minW];
+  const start = toView(obj.rect, geo);
+  const cx = e.clientX, cy = e.clientY;
+  const right = start.x + start.w, bottom = start.y + start.h;
   const el = e.target as HTMLElement;
   let moved = false;
   el.setPointerCapture?.(e.pointerId);
 
+  const set = (x: number, y: number, w: number, h: number) => { obj.rect = fromView({ x, y, w, h }, geo); };
+
   const onMove = (ev: PointerEvent) => {
-    if (!moved && Math.hypot(ev.clientX - start.cx, ev.clientY - start.cy) < 4) return;
+    if (!moved && Math.hypot(ev.clientX - cx, ev.clientY - cy) < 4) return;
     moved = true;
-    const dx = (ev.clientX - start.cx) / s, dy = (ev.clientY - start.cy) / s; // pt; dy > 0 = para baixo
+    const dx = (ev.clientX - cx) / s, dy = (ev.clientY - cy) / s; // pt; dy > 0 = para baixo
     if (mode === 'move') {
-      obj.rect.x = clamp(start.x + dx, px0, px1 - start.w);
-      obj.rect.y = clamp(start.y - dy, py0 + start.h, py1);
+      set(clamp(start.x + dx, 0, pw - start.w), clamp(start.y + dy, 0, ph - start.h), start.w, start.h);
       return;
     }
     if (aspect && mode.length === 2) {
@@ -41,20 +48,20 @@ export function startDrag(e: PointerEvent, { ed, obj, scale: s, mode, minW, minH
       const ky = (start.h + (south ? dy : -dy)) / start.h;
       const kMin = Math.max(minW / start.w, minH / start.h);
       const kMax = Math.min(
-        east ? (px1 - start.x) / start.w : (right - px0) / start.w,
-        south ? (start.y - py0) / start.h : (py1 - bottom) / start.h,
+        east ? (pw - start.x) / start.w : right / start.w,
+        south ? (ph - start.y) / start.h : bottom / start.h,
       );
       const k = clamp(Math.max(kx, ky), kMin, kMax);
       const w = start.w * k, h = start.h * k;
-      obj.rect = { x: east ? start.x : right - w, y: south ? start.y : bottom + h, w, h };
+      set(east ? start.x : right - w, south ? start.y : bottom - h, w, h);
       return;
     }
     let { x, y, w, h } = start;
-    if (mode.includes('e')) w = clamp(start.w + dx, minW, px1 - start.x);
-    if (mode.includes('w')) { x = clamp(start.x + dx, px0, right - minW); w = right - x; }
-    if (mode.includes('s')) h = clamp(start.h + dy, minH, start.y - py0);
-    if (mode.includes('n')) { y = clamp(start.y - dy, bottom + minH, py1); h = y - bottom; }
-    obj.rect = { x, y, w, h };
+    if (mode.includes('e')) w = clamp(start.w + dx, minW, pw - start.x);
+    if (mode.includes('w')) { x = clamp(start.x + dx, 0, right - minW); w = right - x; }
+    if (mode.includes('s')) h = clamp(start.h + dy, minH, ph - start.y);
+    if (mode.includes('n')) { y = clamp(start.y + dy, 0, bottom - minH); h = bottom - y; }
+    set(x, y, w, h);
   };
   const onUp = (ev: PointerEvent) => {
     el.removeEventListener('pointermove', onMove);
