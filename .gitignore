@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dev-dist/
+test-results/
+playwright-report/
+blob-report/
+# copiados de node_modules/pdfjs-dist no build
+public/pdfjs/
+# fixtures são gerados por script (npm run fixtures); nunca versionar PDFs reais
+*.pdf
+.DS_Store

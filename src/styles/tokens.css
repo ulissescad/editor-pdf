@@ -1,0 +1,36 @@
+/* Cores e medidas compartilhadas por todas as páginas (início, ferramentas e editor). */
+:root {
+  --bg: #eef0f3;
+  --surface: #ffffff;
+  --surface-2: #f6f7f9;
+  --text: #1d2330;
+  --muted: #5d6577;
+  --border: #d6dae2;
+  --accent: #2457d6;
+  --accent-soft: #e6edfc;
+  --accent-text: #ffffff;
+  --ok-bg: #e5f4ea;   --ok-text: #1d6b39;
+  --warn-bg: #fff3d6; --warn-text: #7a5600;
+  --err-bg: #fde6e6;  --err-text: #9b1c1c;
+  --radius: 10px;
+  --tap: 44px; /* alvo mínimo de toque */
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15181e; --surface: #1f232b; --surface-2: #262b34; --text: #e7e9ee; --muted: #9aa2b3;
+    --border: #343a46; --accent: #5b8cff; --accent-soft: #23304d; --accent-text: #0b1020;
+    --ok-bg: #173a24; --ok-text: #8fdca9;
+    --warn-bg: #3d3214; --warn-text: #f1cf7a;
+    --err-bg: #44191b; --err-text: #f4a3a3;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15181e; --surface: #1f232b; --surface-2: #262b34; --text: #e7e9ee; --muted: #9aa2b3;
+  --border: #343a46; --accent: #5b8cff; --accent-soft: #23304d; --accent-text: #0b1020;
+  --ok-bg: #173a24; --ok-text: #8fdca9;
+  --warn-bg: #3d3214; --warn-text: #f1cf7a;
+  --err-bg: #44191b; --err-text: #f4a3a3;
+  color-scheme: dark;
+}

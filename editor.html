@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<!-- CSP -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2457d6">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon-180x180.png">
+<title>Editor de PDF</title>
+</head>
+<body>
+<header>
+  <a class="home" href="./" title="Início: todas as ferramentas"><img src="logo.svg" alt="Início" width="28" height="28"></a>
+  <h1>Editor de PDF</h1>
+  <label class="btn" for="fileInput">Abrir PDF</label>
+  <input id="fileInput" type="file" accept="application/pdf,.pdf" hidden>
+  <span class="filename" id="fileName"></span>
+  <span class="spacer"></span>
+  <div class="group zoom">
+    <button id="zoomOut" title="Diminuir zoom" disabled>−</button>
+    <span id="zoomLabel">–</span>
+    <button id="zoomIn" title="Aumentar zoom" disabled>+</button>
+    <button id="zoomFit" title="Ajustar à largura" disabled>Largura</button>
+  </div>
+  <button id="textMode" aria-pressed="false" title="Clique ou arraste na página para criar uma caixa de texto" disabled>Inserir texto</button>
+  <div class="group" id="textOpts" hidden>
+    <select id="fontFamily" title="Fonte">
+      <option value="helv">Arial / Helvetica</option>
+      <option value="times">Times New Roman</option>
+      <option value="courier">Courier New</option>
+    </select>
+    <input id="fontSize" type="number" min="4" max="96" step="1" value="11" title="Tamanho da fonte (pt)">
+    <button id="bold" class="styleBtn" aria-pressed="false" title="Negrito"><b>N</b></button>
+    <button id="italic" class="styleBtn" aria-pressed="false" title="Itálico"><i>I</i></button>
+    <input id="fontColor" type="color" value="#000000" title="Cor do texto">
+    <button id="deleteBox" title="Excluir a caixa selecionada (Delete)" disabled>Excluir</button>
+  </div>
+  <button id="download" class="primary" disabled>Baixar PDF</button>
+</header>
+<div id="status" hidden></div>
+<main>
+  <div id="drop">
+    <strong>Arraste um PDF para cá</strong>
+    <span>ou use “Abrir PDF”. O arquivo é processado só no seu navegador; nada é enviado.</span>
+  </div>
+  <div id="viewerContainer" hidden>
+    <div id="viewer" class="pdfViewer"></div>
+  </div>
+</main>
+
+<script type="module" src="/src/legacy-editor/main.js"></script>
+</body>
+</html>

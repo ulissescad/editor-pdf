@@ -1,0 +1,61 @@
+# Editor de PDF
+
+Preencha, assine e organize PDFs **direto no navegador**. Sem servidor, sem IA e sem nenhuma requisição a terceiros:
+os arquivos nunca saem do aparelho de quem usa. Funciona offline e pode ser instalado no celular (PWA).
+
+O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
+
+## Situação atual (marco M0)
+
+- Página inicial com abertura de PDF e o catálogo de ferramentas (as ferramentas aparecem como “em breve” até os marcos M2–M5).
+- Editor v1 (`editor.html`): preencher formulários, caixas de texto com fonte, tamanho, cor, negrito e itálico, e baixar o PDF.
+- Bibliotecas, fontes, CMaps e WebAssembly servidos pelo próprio site, com CSP que bloqueia qualquer outra origem.
+- Offline depois da primeira visita (service worker) e instalável.
+
+## Publicar no GitHub Pages
+
+1. Crie um repositório no GitHub e envie este projeto para a branch `main`.
+2. No repositório: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. Cada push na `main` roda os testes e, se passarem, publica em `https://<usuário>.github.io/<repositório>/`.
+   O caminho base é detectado automaticamente pelo nome do repositório.
+4. **Domínio próprio (opcional):** configure o domínio em Settings → Pages e crie a variável de repositório
+   `BASE_PATH` com o valor `/` (Settings → Secrets and variables → Actions → Variables).
+
+> O site publicado é público mesmo que o repositório seja privado (Pages em repositório privado exige plano pago).
+> Nenhum dado de usuário passa pelo GitHub: todo o processamento acontece no navegador.
+
+## Desenvolvimento
+
+Requer Node.js 22.12 ou mais novo.
+
+```bash
+npm install
+npm run dev          # servidor local com recarga automática
+npm run check        # tipos (TypeScript + Svelte)
+npm test             # testes unitários e de viabilidade (pdf-lib, qpdf)
+npx playwright install chromium webkit   # só na primeira vez
+npm run test:e2e     # testes de ponta a ponta: computador, Android e iPhone (emulados)
+npm run build        # gera o site em dist/
+npm run icons        # regenera os ícones a partir de public/logo.svg
+```
+
+Os testes de ponta a ponta usam o build de produção servido em `/editor-pdf/`, como no GitHub Pages, e reprovam se o site
+fizer **qualquer requisição para fora** ou se houver violação da política de segurança.
+
+Os PDFs de teste são gerados por script (`npm run fixtures`). **Não versione PDFs reais:** o `.gitignore` bloqueia `*.pdf`.
+
+## Estrutura
+
+```
+index.html, src/main.ts, src/App.svelte   página inicial e rotas (#/ferramenta/<id>)
+editor.html, src/legacy-editor/           editor v1 (será substituído no M1)
+src/lib/                                  catálogo de ferramentas, rotas, PWA, passagem de arquivo entre páginas
+config/site.ts                            caminho base e política de segurança (CSP)
+tests/unit, tests/e2e, tests/fixtures     testes e geração de PDFs sintéticos
+.github/workflows/deploy.yml              testes + publicação no GitHub Pages
+```
+
+## Bibliotecas
+
+pdf.js (Apache-2.0) · @cantoo/pdf-lib (MIT) · Svelte (MIT) · Lucide (ISC) · Workbox/vite-plugin-pwa (MIT) ·
+qpdf-wasm (ISC, usado a partir do M5; hoje só nos testes de viabilidade)

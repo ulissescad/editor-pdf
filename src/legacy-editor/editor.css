@@ -1,0 +1,120 @@
+  :root {
+    --bg: #eef0f3;
+    --surface: #ffffff;
+    --text: #1d2330;
+    --muted: #5d6577;
+    --border: #d6dae2;
+    --accent: #2457d6;
+    --accent-text: #ffffff;
+    --ok-bg: #e5f4ea;   --ok-text: #1d6b39;
+    --warn-bg: #fff3d6; --warn-text: #7a5600;
+    --err-bg: #fde6e6;  --err-text: #9b1c1c;
+    --box: #2457d6;     /* contorno das caixas de texto (sobre a página branca) */
+    --box-overflow: #d13a3a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15181e; --surface: #1f232b; --text: #e7e9ee; --muted: #9aa2b3;
+      --border: #343a46; --accent: #5b8cff; --accent-text: #0b1020;
+      --ok-bg: #173a24; --ok-text: #8fdca9;
+      --warn-bg: #3d3214; --warn-text: #f1cf7a;
+      --err-bg: #44191b; --err-text: #f4a3a3;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+    padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  h1 { font-size: 16px; margin: 0 8px 0 0; white-space: nowrap; }
+  .filename { color: var(--muted); max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .spacer { flex: 1; }
+  button, .btn {
+    font: inherit; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    border-radius: 6px; padding: 6px 12px; cursor: pointer; white-space: nowrap;
+  }
+  button:hover:not(:disabled), .btn:hover { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  .primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  .group { display: flex; align-items: center; gap: 4px; }
+  .group[hidden] { display: none; }
+  .zoom span { min-width: 4.5ch; text-align: center; color: var(--muted); }
+  .zoom button, .styleBtn { padding: 6px 10px; }
+  button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  select, input[type="number"], input[type="color"] {
+    font: inherit; height: 32px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface); color: var(--text); padding: 0 6px;
+  }
+  input[type="number"] { width: 4.5em; }
+  input[type="color"] { width: 36px; padding: 2px; cursor: pointer; }
+  #status { padding: 8px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  #status[hidden] { display: none; }
+  #status.ok { background: var(--ok-bg); color: var(--ok-text); }
+  #status.warn { background: var(--warn-bg); color: var(--warn-text); }
+  #status.err { background: var(--err-bg); color: var(--err-text); }
+  main { position: relative; flex: 1; min-height: 0; }
+  /* pdf.js exige que o container seja posicionado de forma absoluta */
+  #viewerContainer { position: absolute; inset: 0; overflow: auto; }
+  #viewerContainer[hidden] { display: none; }
+  #viewer { position: relative; }
+  .pdfViewer .page { box-shadow: 0 1px 4px rgba(0,0,0,.18); border: none; margin: 12px auto; }
+  body.text-mode .pdfViewer .page { cursor: crosshair; }
+  #drop {
+    position: absolute; inset: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; text-align: center; border: 2px dashed var(--border); border-radius: 12px; color: var(--muted); padding: 16px;
+  }
+  #drop[hidden] { display: none; }
+  #drop strong { color: var(--text); font-size: 16px; }
+  body.dragging main { outline: 3px solid var(--accent); outline-offset: -3px; }
+
+  /* ---- Caixas de texto ---- */
+  #boxLayer { position: absolute; inset: 0; pointer-events: none; z-index: 1000; }
+  .tbox { position: absolute; pointer-events: auto; cursor: move; touch-action: none; outline: 1px dashed rgba(36,87,214,.45); }
+  .tbox:hover { outline-color: var(--box); }
+  .tbox.selected { outline: 1.5px solid var(--box); }
+  .tbox.overflow { outline: 1.5px dashed var(--box-overflow); }
+  .tbox.editing { cursor: text; }
+  .tcontent {
+    width: 100%; height: 100%; overflow: hidden; line-height: 1.2;
+    white-space: pre-wrap; overflow-wrap: break-word; outline: none; pointer-events: none;
+  }
+  .tbox.editing .tcontent { pointer-events: auto; }
+  .handle {
+    position: absolute; width: 10px; height: 10px; background: #fff; border: 1.5px solid var(--box);
+    border-radius: 2px; display: none; touch-action: none;
+  }
+  .tbox.selected .handle { display: block; }
+  .handle[data-h="nw"] { left: -6px; top: -6px; cursor: nwse-resize; }
+  .handle[data-h="n"]  { left: calc(50% - 5px); top: -6px; cursor: ns-resize; }
+  .handle[data-h="ne"] { right: -6px; top: -6px; cursor: nesw-resize; }
+  .handle[data-h="e"]  { right: -6px; top: calc(50% - 5px); cursor: ew-resize; }
+  .handle[data-h="se"] { right: -6px; bottom: -6px; cursor: nwse-resize; }
+  .handle[data-h="s"]  { left: calc(50% - 5px); bottom: -6px; cursor: ns-resize; }
+  .handle[data-h="sw"] { left: -6px; bottom: -6px; cursor: nesw-resize; }
+  .handle[data-h="w"]  { left: -6px; top: calc(50% - 5px); cursor: ew-resize; }
+  .grip {
+    position: absolute; left: -1px; top: -22px; height: 20px; padding: 0 6px; display: none;
+    background: var(--box); color: #fff; font: 12px/20px system-ui, sans-serif; border-radius: 4px 4px 0 0;
+    cursor: move; user-select: none; touch-action: none; white-space: nowrap;
+  }
+  .tbox.selected .grip { display: block; }
+  .drawRect { position: absolute; border: 1.5px dashed var(--box); background: rgba(36,87,214,.06); pointer-events: none; }
+  @media (pointer: coarse) {
+    .handle { width: 18px; height: 18px; }
+    .handle[data-h="nw"], .handle[data-h="sw"], .handle[data-h="w"] { left: -10px; }
+    .handle[data-h="ne"], .handle[data-h="se"], .handle[data-h="e"] { right: -10px; }
+    .handle[data-h="nw"], .handle[data-h="n"], .handle[data-h="ne"] { top: -10px; }
+    .handle[data-h="sw"], .handle[data-h="s"], .handle[data-h="se"] { bottom: -10px; }
+  }
+  @media (max-width: 600px) {
+    h1 { display: none; }
+    .filename { max-width: 100%; flex-basis: 100%; order: 10; }
+  }
+  .home { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; }
+  .home img { display: block; }

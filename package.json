@@ -1,0 +1,42 @@
+{
+  "name": "editor-de-pdf",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Editor de PDF que roda 100% no navegador: sem servidor, sem IA, sem requisições externas.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "fixtures": "node tests/fixtures/make-fixtures.mjs",
+    "icons": "pwa-assets-generator"
+  },
+  "dependencies": {
+    "@cantoo/pdf-lib": "2.11.1",
+    "@lucide/svelte": "1.66.0",
+    "html-entities": "2.6.0",
+    "pdfjs-dist": "6.4.299"
+  },
+  "devDependencies": {
+    "@neslinesli93/qpdf-wasm": "0.3.0",
+    "@playwright/test": "1.64.1",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@tsconfig/svelte": "5.0.8",
+    "@types/node": "24.10.1",
+    "@vite-pwa/assets-generator": "2.0.0",
+    "svelte": "5.57.3",
+    "svelte-check": "4.7.7",
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vite-plugin-pwa": "2.0.0",
+    "vitest": "4.1.12",
+    "workbox-window": "7.4.1"
+  }
+}
