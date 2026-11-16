@@ -1,6 +1,9 @@
 <script lang="ts">
-  import { FONTS, isItalic, type Align, type FontId } from './model';
+  import { FONTS, isFixed, isItalic, type Align, type FontId, type MarkupType, type ShapeType } from './model';
   import { SYMBOL_DEFS, SYMBOL_IDS } from './symbols';
+  import {
+    HIGHLIGHT_COLORS, INK_WIDTHS, MARKUP_LABELS, NOTE_COLORS, SHAPE_LABELS, SHAPE_WIDTHS, STROKE_COLORS, shapeFamily,
+  } from './draw';
   import type { EditorState } from './state.svelte';
   import Minus from '@lucide/svelte/icons/minus';
   import Plus from '@lucide/svelte/icons/plus';
@@ -14,6 +17,15 @@
   import TextCursorInput from '@lucide/svelte/icons/text-cursor-input';
   import SquareCheck from '@lucide/svelte/icons/square-check';
   import WrapText from '@lucide/svelte/icons/text-wrap';
+  import Highlighter from '@lucide/svelte/icons/highlighter';
+  import Underline from '@lucide/svelte/icons/underline';
+  import Strikethrough from '@lucide/svelte/icons/strikethrough';
+  import Square from '@lucide/svelte/icons/square';
+  import Circle from '@lucide/svelte/icons/circle';
+  import Slash from '@lucide/svelte/icons/slash';
+  import MoveUpRight from '@lucide/svelte/icons/move-up-right';
+  import Eraser from '@lucide/svelte/icons/eraser';
+  import PencilLine from '@lucide/svelte/icons/pencil-line';
 
   let { ed }: { ed: EditorState } = $props();
 
@@ -26,8 +38,18 @@
   const s = $derived(ed.style);
   const sel = $derived(ed.selected);
   // O que o painel mostra: o objeto selecionado ou, sem seleção, a ferramenta ativa
-  const mode = $derived(sel?.kind ?? (ed.tool === 'stamp' ? 'symbol' : ed.tool === 'field' ? 'field' : 'text'));
+  const TOOL_MODE: Partial<Record<string, string>> = { stamp: 'symbol', field: 'field', markup: 'markup', ink: 'ink', shape: 'shape', note: 'note' };
+  const mode = $derived(sel?.kind ?? TOOL_MODE[ed.tool] ?? 'text');
   const field = $derived(sel?.kind === 'field' ? sel : null);
+  const coarse = matchMedia('(pointer: coarse)').matches;
+
+  const MARKUP_ICONS: Record<MarkupType, typeof Highlighter> = { highlight: Highlighter, underline: Underline, strike: Strikethrough };
+  const SHAPE_ICONS: Record<ShapeType, typeof Square> = { rect: Square, ellipse: Circle, line: Slash, arrow: MoveUpRight, whiteout: Eraser };
+  const markType = $derived(sel?.kind === 'markup' ? sel.type : ed.markupType);
+  const markColor = $derived(sel?.kind === 'markup' ? sel.color : ed.markupColors[markType]);
+  const shapeType = $derived(sel?.kind === 'shape' ? sel.shape : ed.shapeType);
+  const shapes = $derived(sel?.kind === 'shape' ? shapeFamily(sel.shape) : (Object.keys(SHAPE_LABELS) as ShapeType[]));
+  const marker = $derived(sel?.kind === 'ink' ? sel.opacity !== undefined : ed.inkMarker);
 
   // Botões que não tiram o foco do texto em edição
   const keepFocus = (e: PointerEvent) => e.preventDefault();
@@ -118,13 +140,90 @@
       <span class="hint">Toque na página para criar um campo.</span>
     {/if}
 
+  {:else if mode === 'markup'}
+    <div class="group" role="group" aria-label="Tipo de marcação">
+      {#each Object.keys(MARKUP_LABELS) as MarkupType[] as t (t)}
+        {@const Icon = MARKUP_ICONS[t]}
+        <button class="icon text" aria-pressed={markType === t} onclick={() => ed.setMarkup({ type: t })}><Icon size={18} /><span>{MARKUP_LABELS[t]}</span></button>
+      {/each}
+    </div>
+    <div class="group" role="group" aria-label="Cor da marcação">
+      {#each markType === 'highlight' ? HIGHLIGHT_COLORS : STROKE_COLORS as c (c)}
+        <button class="swatch" aria-label="Cor {c}" aria-pressed={markColor === c} style:--c={c} onclick={() => ed.setMarkup({ color: c })}></button>
+      {/each}
+    </div>
+    {#if !sel}<span class="hint">{coarse ? 'Arraste o dedo sobre o texto (dois dedos rolam).' : 'Arraste sobre o texto.'} Fora do texto, desenha um retângulo.</span>{/if}
+
+  {:else if mode === 'ink'}
+    {#if sel?.kind !== 'ink' || !marker}
+      <div class="group" role="group" aria-label="Espessura">
+        {#each INK_WIDTHS as wd (wd.value)}
+          <button class="icon text" aria-pressed={!marker && (sel?.kind === 'ink' ? sel.width : ed.inkWidth) === wd.value}
+            onclick={() => ed.setInk({ width: wd.value })}>
+            <span class="stroke" style:height="{Math.max(1, wd.value * 0.8)}px"></span><span>{wd.label}</span></button>
+        {/each}
+        {#if !sel}
+          <button class="icon text" aria-pressed={marker} onclick={() => ed.setInk({ marker: !marker })}><Highlighter size={18} /><span>Marca-texto</span></button>
+        {/if}
+      </div>
+      <div class="group" role="group" aria-label="Cor da caneta">
+        {#each STROKE_COLORS as c (c)}
+          <button class="swatch" aria-label="Cor {c}" aria-pressed={!marker && (sel?.kind === 'ink' ? sel.color : ed.inkColor) === c} style:--c={c}
+            onclick={() => ed.setInk({ color: c })}></button>
+        {/each}
+      </div>
+    {/if}
+    {#if !sel}<span class="hint">{coarse ? 'Desenhe com um dedo; dois dedos rolam e dão zoom.' : 'Desenhe arrastando na página.'}</span>{/if}
+
+  {:else if mode === 'shape'}
+    <div class="group" role="group" aria-label="Forma">
+      {#each shapes as t (t)}
+        {@const Icon = SHAPE_ICONS[t]}
+        <button class="icon text" aria-label={SHAPE_LABELS[t]} title={SHAPE_LABELS[t]} aria-pressed={shapeType === t}
+          onclick={() => ed.setShape({ shape: t })}><Icon size={18} /><span class="lbl">{SHAPE_LABELS[t]}</span></button>
+      {/each}
+    </div>
+    {#if shapeType !== 'whiteout'}
+      <div class="group" role="group" aria-label="Espessura do traço">
+        {#each SHAPE_WIDTHS as wd (wd.value)}
+          <button class="icon" aria-label="Traço {wd.label.toLowerCase()}" title="Traço {wd.label.toLowerCase()}"
+            aria-pressed={(sel?.kind === 'shape' ? sel.width : ed.shapeWidth) === wd.value}
+            onclick={() => ed.setShape({ width: wd.value })}><span class="stroke" style:height="{wd.value}px"></span></button>
+        {/each}
+      </div>
+      <div class="group" role="group" aria-label="Cor da forma">
+        {#each STROKE_COLORS as c (c)}
+          <button class="swatch" aria-label="Cor {c}" aria-pressed={(sel?.kind === 'shape' ? sel.color : ed.shapeColor) === c} style:--c={c}
+            onclick={() => ed.setShape({ color: c })}></button>
+        {/each}
+      </div>
+    {:else if !sel}
+      <span class="hint">O corretivo cobre com branco, mas o texto continua no arquivo. Para apagar de verdade, use “Tarjar”.</span>
+    {/if}
+    {#if !sel && shapeType !== 'whiteout'}<span class="hint">Arraste na página para desenhar.</span>{/if}
+
+  {:else if mode === 'note'}
+    <div class="group" role="group" aria-label="Cor da nota">
+      {#each NOTE_COLORS as c (c)}
+        <button class="swatch" aria-label="Cor {c}" aria-pressed={(sel?.kind === 'note' ? sel.color : ed.noteColor) === c} style:--c={c}
+          onclick={() => ed.setNote({ color: c })}></button>
+      {/each}
+    </div>
+    {#if sel}
+      <button class="action" onclick={() => ed.startEditing(sel.id)}><PencilLine size={18} /> Editar comentário</button>
+    {:else}
+      <span class="hint">Toque na página para deixar um comentário.</span>
+    {/if}
+
   {:else if mode === 'image'}
     <span class="hint">{sel?.kind === 'image' && sel.signature ? 'Assinatura' : 'Imagem'}: arraste para mover e use os cantos para mudar o tamanho.</span>
   {/if}
 
   {#if sel}
     <div class="group" role="group" aria-label="Objeto selecionado">
-      <button class="icon" aria-label="Duplicar" title="Duplicar (Ctrl+D)" onclick={() => ed.duplicate()}><Copy size={18} /></button>
+      {#if !isFixed(sel)}
+        <button class="icon" aria-label="Duplicar" title="Duplicar (Ctrl+D)" onclick={() => ed.duplicate()}><Copy size={18} /></button>
+      {/if}
       <button class="icon danger" aria-label="Excluir" title="Excluir (Delete)" onclick={() => ed.remove()}><Trash size={18} /></button>
     </div>
   {/if}
@@ -155,6 +254,8 @@
     border-radius: 8px; background: var(--accent-soft); color: var(--accent); font: 600 14px/1 system-ui, sans-serif; cursor: pointer; white-space: nowrap;
   }
   .hint { color: var(--muted); font-size: 13px; }
+  .stroke { display: inline-block; width: 18px; background: currentColor; border-radius: 2px; }
+  @media (max-width: 899px) { .lbl { display: none; } }
   .danger { color: var(--err-text); }
   .swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--surface); background: var(--c); box-shadow: 0 0 0 1px var(--border); cursor: pointer; margin: 0 2px; }
   .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent); }

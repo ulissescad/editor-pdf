@@ -102,7 +102,52 @@ export interface FieldObj extends Base {
   multiline: boolean;
 }
 
-export type Obj = TextObj | ImageObj | SymbolObj | FieldObj;
+export type MarkupType = 'highlight' | 'underline' | 'strike';
+
+/**
+ * Destacar, sublinhar ou riscar texto (vira anotação Highlight/Underline/StrikeOut no PDF).
+ * `quads` são os retângulos das linhas no espaço do PDF; `rect` é a caixa que envolve todos.
+ * `rot` é a direção do texto (o texto corre no sentido de `rot` graus, anti-horário).
+ */
+export interface MarkupObj extends Base {
+  kind: 'markup';
+  type: MarkupType;
+  color: string;
+  quads: Rect[];
+  text?: string;     // texto marcado (vai para o /Contents, aparece na lista de comentários)
+}
+
+/**
+ * Caneta: traços à mão livre. Os pontos ficam normalizados (0–1) no quadro do conteúdo, com y para
+ * baixo, em listas planas [u0, v0, u1, v1…]. Assim mover e redimensionar não mexe nos pontos.
+ */
+export interface InkObj extends Base {
+  kind: 'ink';
+  paths: number[][];
+  color: string;
+  width: number;     // espessura do traço, em pt
+  opacity?: number;  // < 1 = marca-texto (multiplica com a página)
+}
+
+export type ShapeType = 'rect' | 'ellipse' | 'line' | 'arrow' | 'whiteout';
+
+/** Formas, setas e corretivo. Linha/seta vão de `ends[0..1]` a `ends[2..3]` (normalizados no quadro). */
+export interface ShapeObj extends Base {
+  kind: 'shape';
+  shape: ShapeType;
+  color: string;     // cor do traço (no corretivo, a cor do preenchimento)
+  width: number;     // espessura do traço, em pt
+  ends?: [number, number, number, number];
+}
+
+/** Comentário (nota adesiva): vira anotação Text do PDF, com o ícone desenhado igual em todo leitor. */
+export interface NoteObj extends Base {
+  kind: 'note';
+  text: string;
+  color: string;
+}
+
+export type Obj = TextObj | ImageObj | SymbolObj | FieldObj | MarkupObj | InkObj | ShapeObj | NoteObj;
 export type ObjKind = Obj['kind'];
 
 export interface ImageAsset {
@@ -170,11 +215,44 @@ export function uniqueName(base: string, taken: Set<string>): string {
   return name;
 }
 
+export const NOTE_SIZE = 20; // pt (lado do ícone da nota)
+
+export function makeMarkup(page: number, rect: Rect, type: MarkupType, color: string, quads: Rect[], text = '', rot?: Rot): MarkupObj {
+  return {
+    id: newId(), kind: 'markup', page, rect: { ...rect }, type, color, quads: quads.map((q) => ({ ...q })),
+    ...(text ? { text } : {}), ...withRot(rot),
+  };
+}
+
+export function makeInk(page: number, rect: Rect, paths: number[][], color: string, width: number, opacity?: number, rot?: Rot): InkObj {
+  return {
+    id: newId(), kind: 'ink', page, rect: { ...rect }, paths, color, width,
+    ...(opacity !== undefined && opacity < 1 ? { opacity } : {}), ...withRot(rot),
+  };
+}
+
+export function makeShape(page: number, rect: Rect, shape: ShapeType, color: string, width: number,
+  ends?: ShapeObj['ends'], rot?: Rot): ShapeObj {
+  return {
+    id: newId(), kind: 'shape', page, rect: { ...rect }, shape, color, width,
+    ...(ends ? { ends: [...ends] as ShapeObj['ends'] } : {}), ...withRot(rot),
+  };
+}
+
+export function makeNote(page: number, rect: Rect, color: string, text = '', rot?: Rot): NoteObj {
+  return { id: newId(), kind: 'note', page, rect: { ...rect }, text, color, ...withRot(rot) };
+}
+
 /** Objetos que mantêm a proporção ao redimensionar pelos cantos. */
-export const keepsAspect = (o: Obj) => o.kind === 'image' || o.kind === 'symbol';
+export const keepsAspect = (o: Obj) => o.kind === 'image' || o.kind === 'symbol' || o.kind === 'note';
+
+/** Objetos presos ao texto da página: não se movem nem mudam de tamanho. */
+export const isFixed = (o: Obj) => o.kind === 'markup';
 
 /** Objeto sem conteúdo (não vai para o PDF). */
-export const isEmpty = (o: Obj) => o.kind === 'text' && !o.text.trim();
+export const isEmpty = (o: Obj) =>
+  (o.kind === 'text' && !o.text.trim()) || (o.kind === 'note' && !o.text.trim())
+  || (o.kind === 'ink' && !o.paths.length) || (o.kind === 'markup' && !o.quads.length);
 
 export const cloneObj = <T extends Obj>(o: T): T => JSON.parse(JSON.stringify(o));
 
@@ -202,6 +280,11 @@ export interface Project {
 export const PROJECT_FILE = 'editor-projeto.json';
 
 const SYMBOLS: SymbolId[] = ['check', 'cross', 'dot', 'circle'];
+const MARKUPS: MarkupType[] = ['highlight', 'underline', 'strike'];
+const SHAPES: ShapeType[] = ['rect', 'ellipse', 'line', 'arrow', 'whiteout'];
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const isRect = (r: Rect | undefined) => !!r && isNum(r.x) && isNum(r.y) && isNum(r.w) && isNum(r.h);
+const isColor = (c: unknown) => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
 
 function validObj(o: Obj | null | undefined, images: Set<string>): boolean {
   if (!o || !Number.isInteger(o.page) || o.page < 0 || !o.rect || typeof o.id !== 'string') return false;
@@ -211,6 +294,12 @@ function validObj(o: Obj | null | undefined, images: Set<string>): boolean {
     case 'image': return images.has(o.imageId);
     case 'symbol': return SYMBOLS.includes(o.symbol);
     case 'field': return (o.type === 'text' || o.type === 'check') && typeof o.name === 'string';
+    case 'markup': return MARKUPS.includes(o.type) && isColor(o.color) && Array.isArray(o.quads) && o.quads.every(isRect);
+    case 'ink': return isColor(o.color) && isNum(o.width) && Array.isArray(o.paths)
+      && o.paths.every((p) => Array.isArray(p) && p.length >= 2 && p.every(isNum));
+    case 'shape': return SHAPES.includes(o.shape) && isColor(o.color) && isNum(o.width)
+      && (o.ends === undefined || (Array.isArray(o.ends) && o.ends.length === 4 && o.ends.every(isNum)));
+    case 'note': return typeof o.text === 'string' && isColor(o.color);
     default: return false;
   }
 }

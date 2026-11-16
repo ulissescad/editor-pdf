@@ -169,6 +169,24 @@ export async function makeRotated() {
   return doc.save();
 }
 
+/** Parágrafos de texto (para destacar, sublinhar e riscar), com a página 2 girada 90°. */
+export async function makeText() {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const lines = [
+    'Primeira linha do texto para destacar com o dedo.',
+    'Segunda linha, logo abaixo da primeira linha.',
+    'Terceira linha: anotar, sublinhar e riscar.',
+  ];
+  for (let p = 0; p < 2; p++) {
+    const page = doc.addPage([595, 842]);
+    lines.forEach((t, i) => page.drawText(t, { x: 60, y: 760 - i * 24, size: 16, font }));
+    page.drawText('Rodape solto no fim da pagina', { x: 60, y: 120, size: 12, font });
+    if (p === 1) page.setRotation(degrees(90));
+  }
+  return doc.save();
+}
+
 /** PNG “paisagem” maior (para imagens → PDF). */
 export const makeWidePng = () => makePng(300, 120);
 
@@ -182,6 +200,7 @@ export async function writeAll() {
   writeFileSync(`${FIXTURES_DIR}letters.pdf`, await makeNumbered(2, 'Letra'));
   writeFileSync(`${FIXTURES_DIR}rotated.pdf`, await makeRotated());
   writeFileSync(`${FIXTURES_DIR}wide.png`, makeWidePng());
+  writeFileSync(`${FIXTURES_DIR}text.pdf`, await makeText());
   return FIXTURES_DIR;
 }
 

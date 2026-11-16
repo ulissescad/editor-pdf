@@ -1,11 +1,11 @@
 # Editor de PDF
 
-Preencha, assine e organize PDFs **direto no navegador**. Sem servidor, sem IA e sem nenhuma requisição a terceiros:
+Preencha, assine, anote e organize PDFs **direto no navegador**. Sem servidor, sem IA e sem nenhuma requisição a terceiros:
 os arquivos nunca saem do aparelho de quem usa. Funciona offline e pode ser instalado no celular (PWA).
 
 O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
 
-## Situação atual (marco M3)
+## Situação atual (marco M4)
 
 - **Editor** (`#/editor`), pensado primeiro para o celular:
   - preencher formulários (AcroForm e XFA);
@@ -16,12 +16,16 @@ O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
   - **imagens**, **símbolos** (✓ ✗ ● ○) e **data de hoje** com um toque;
   - **detectar campos** em PDFs sem formulário (só regras geométricas, sem IA) e **criar campos** à mão:
     o PDF baixado sai com campos de formulário de verdade, já preenchidos;
+  - **anotar**: destacar, sublinhar e riscar o texto arrastando o dedo sobre as linhas (um toque marca a palavra),
+    caneta à mão livre (com marca-texto), retângulo, elipse, linha, seta, corretivo branco e notas (comentários).
+    Destaques e notas saem como anotações de verdade do PDF (aparecem na lista de comentários de outros leitores);
+    no celular, um dedo desenha e dois dedos rolam;
   - **organizar páginas** do documento aberto (reordenar, girar, excluir, duplicar, página em branco): o que você
     escreveu acompanha as páginas; páginas giradas são editadas em pé;
   - desfazer/refazer, copiar, colar e duplicar;
   - pinça para zoom, miniaturas, busca e indicador de página;
   - **rascunho automático** no próprio navegador (“Continuar de onde parou”);
-  - **PDF reeditável**: o PDF baixado, reaberto aqui, volta com textos, imagens, assinaturas e símbolos editáveis;
+  - **PDF reeditável**: o PDF baixado, reaberto aqui, volta com textos, imagens, assinaturas, símbolos e anotações editáveis;
   - baixar, compartilhar (WhatsApp, e-mail…) e imprimir.
 - **Ferramentas prontas**: Assinar PDF, **Juntar PDF**, **Dividir PDF** (intervalos, uma página por arquivo ou
   escolher páginas; vários arquivos saem num ZIP), **Organizar páginas**, **Imagens para PDF** (com a câmera do celular)

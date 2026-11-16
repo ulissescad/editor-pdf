@@ -4,13 +4,17 @@
 // com /EditorPDF /Objetos. O projeto (JSON) vai junto como anexo. Ao reabrir o PDF, removemos essa camada
 // e o anexo e recriamos os objetos editáveis, sem duplicar nada.
 // Campos criados no editor viram campos de formulário de verdade (AcroForm) e não entram no projeto.
+// Destaques, sublinhados, riscados e notas viram anotações de verdade (Highlight, Underline, StrikeOut, Text),
+// com aparência própria (/AP) para saírem iguais em todo leitor; elas também levam a marca e são
+// removidas ao reabrir. Caneta, formas e corretivo são desenho vetorial na camada de objetos.
 import type { PDFDocument as PDFDocumentType, PDFFont, PDFImage, PDFPage } from '@cantoo/pdf-lib';
 import {
   DEFAULT_STYLE, LINE, PAD, PROJECT_FILE, fontFile, parseProject, pdfFontName, toBase64,
-  type FieldObj, type ImageAsset, type Obj, type Project, type TextStyle,
+  type FieldObj, type ImageAsset, type MarkupObj, type NoteObj, type Obj, type Project, type TextStyle,
 } from '../editor/model';
 import { SYMBOL_DEFS } from '../editor/symbols';
 import { contentMatrix, localSize, normRot } from '../editor/geom';
+import { HIGHLIGHT_OPACITY, NOTE_ICON, inkPath, markupRects, quadPoints, shapeGeometry, unionRect } from '../editor/draw';
 
 const loadLib = () => import('@cantoo/pdf-lib');
 const MARK_KEY = 'EditorPDF';
@@ -58,12 +62,13 @@ export async function stampObjects(
 ): Promise<{ bytes: Uint8Array; replaced: number; fields: number }> {
   const lib = await loadLib();
   const { PDFDocument, StandardFonts, rgb, pushGraphicsState, popGraphicsState, rectangle, clip, endPath, PDFName, LineCapStyle,
-    concatTransformationMatrix, degrees } = lib;
+    concatTransformationMatrix, degrees, setLineJoin, LineJoinStyle, BlendMode } = lib;
   const doc = await PDFDocument.load(bytes, { updateMetadata: false });
   const fonts = new Map<string, { font: PDFFont; chars: Set<number> }>();
   const images = new Map<string, PDFImage>();
   const touched = new Set<PDFPage>();
   const fieldObjs: FieldObj[] = [];
+  const annotObjs: Array<MarkupObj | NoteObj> = [];
   let replaced = 0;
 
   let fontkitReady = false;
@@ -90,7 +95,9 @@ export async function stampObjects(
   for (const { obj, lines, baseline = 0.9 } of items) {
     if (obj.page >= doc.getPageCount()) continue;
     if (obj.kind === 'field') { fieldObjs.push(obj); continue; }
+    if (obj.kind === 'markup' || obj.kind === 'note') { annotObjs.push(obj); continue; }
     if (obj.kind === 'text' && !obj.text.trim()) continue;
+    if (obj.kind === 'ink' && !obj.paths.length) continue;
     if (obj.kind === 'image' && !assets.has(obj.imageId)) continue;
     const page = doc.getPage(obj.page);
     touched.add(page);
@@ -137,6 +144,23 @@ export async function stampObjects(
           ? { borderColor: color, borderWidth: def.stroke, borderLineCap: LineCapStyle.Round }
           : { color }),
       });
+    } else if (obj.kind === 'ink') {
+      // Juntas e pontas redondas, como na tela (SVG com stroke-linejoin/linecap round)
+      page.pushOperators(pushGraphicsState(), setLineJoin(LineJoinStyle.Round));
+      page.drawSvgPath(inkPath(obj.paths, w, h), {
+        x, y, scale: 1, borderColor: rgb(...hexToRgb(obj.color)), borderWidth: obj.width, borderLineCap: LineCapStyle.Round,
+        ...(obj.opacity !== undefined ? { borderOpacity: obj.opacity, blendMode: BlendMode.Multiply } : {}),
+      });
+      page.pushOperators(popGraphicsState());
+    } else if (obj.kind === 'shape') {
+      const geo = shapeGeometry(obj, w, h);
+      const color = rgb(...hexToRgb(obj.color));
+      page.pushOperators(pushGraphicsState(), setLineJoin(LineJoinStyle.Round));
+      if (geo.fill) page.drawSvgPath(geo.fill, { x, y, scale: 1, color });
+      if (geo.stroke) {
+        page.drawSvgPath(geo.stroke, { x, y, scale: 1, borderColor: color, borderWidth: obj.width, borderLineCap: LineCapStyle.Round });
+      }
+      page.pushOperators(popGraphicsState());
     }
     if (turned) page.pushOperators(popGraphicsState());
   }
@@ -148,6 +172,9 @@ export async function stampObjects(
     const dict = (stream as { dict?: import('@cantoo/pdf-lib').PDFDict } | undefined)?.dict;
     dict?.set(PDFName.of(MARK_KEY), PDFName.of(MARK_VALUE));
   }
+
+  // Anotações (itens 1.11 e 1.13 do PLANO.md)
+  for (const o of annotObjs) addAnnotation(lib, doc, doc.getPage(o.page), o);
 
   // Campos de formulário de verdade (item 1.9 do PLANO.md)
   if (fieldObjs.length) {
@@ -190,6 +217,67 @@ export async function stampObjects(
   return { bytes: await doc.save({ updateFieldAppearances: false }), replaced, fields: fieldObjs.length };
 }
 
+type Lib = typeof import('@cantoo/pdf-lib');
+
+const SUBTYPES = { highlight: 'Highlight', underline: 'Underline', strike: 'StrikeOut' } as const;
+/** Matriz que gira a aparência `rot` graus (anti-horário): o leitor a encaixa no /Rect da anotação. */
+const ROT_MATRIX: Record<number, number[]> = { 0: [1, 0, 0, 1, 0, 0], 90: [0, 1, -1, 0, 0, 0], 180: [-1, 0, 0, -1, 0, 0], 270: [0, -1, 1, 0, 0, 0] };
+
+/**
+ * Cria a anotação de destaque/sublinhado/riscado ou de nota, com a aparência pronta (/AP), marcada
+ * como do editor (para ser removida ao reabrir, sem duplicar).
+ */
+function addAnnotation(lib: Lib, doc: PDFDocumentType, page: PDFPage, o: MarkupObj | NoteObj) {
+  const { PDFHexString, PDFString, rgb, pushGraphicsState, popGraphicsState, setGraphicsState, setFillingRgbColor,
+    rectangle, fill, drawSvgPath } = lib;
+  const ctx = doc.context;
+  const [r, g, b] = hexToRgb(o.color);
+  const common = {
+    Type: 'Annot', F: 4, C: [r, g, b], P: page.ref,
+    NM: PDFString.of(o.id), M: PDFString.fromDate(new Date()), [MARK_KEY]: MARK_VALUE,
+  };
+  let dict;
+  if (o.kind === 'markup') {
+    const rects = markupRects(o);
+    const box = unionRect([...o.quads, ...rects]);
+    const bbox = [box.x - 1, box.y - box.h - 1, box.x + box.w + 1, box.y + 1];
+    const highlight = o.type === 'highlight';
+    const ops = [
+      pushGraphicsState(),
+      ...(highlight ? [setGraphicsState('GS0')] : []),
+      setFillingRgbColor(r, g, b),
+      ...rects.map((q) => rectangle(q.x, q.y - q.h, q.w, q.h)),
+      fill(),
+      popGraphicsState(),
+    ];
+    const ap = ctx.formXObject(ops, {
+      BBox: bbox,
+      Resources: highlight ? { ExtGState: { GS0: { Type: 'ExtGState', BM: 'Multiply', ca: HIGHLIGHT_OPACITY, CA: HIGHLIGHT_OPACITY } } } : {},
+    });
+    dict = ctx.obj({
+      ...common, Subtype: SUBTYPES[o.type], Rect: bbox, QuadPoints: quadPoints(o),
+      AP: { N: ctx.register(ap) }, ...(o.text ? { Contents: PDFHexString.fromText(o.text) } : {}),
+    });
+  } else {
+    // Nota: o ícone é desenhado no quadro do próprio conteúdo e girado junto (como os outros objetos)
+    const { w, h } = localSize(o.rect, o.rot);
+    const ink = rgb(...hexToRgb(NOTE_ICON.ink));
+    const k = w / 24;
+    const ops = [
+      ...drawSvgPath(NOTE_ICON.body, { x: 0, y: h, scale: k, color: rgb(r, g, b), borderColor: ink, borderWidth: 1.2 }),
+      ...drawSvgPath(NOTE_ICON.lines, { x: 0, y: h, scale: k, color: undefined, borderColor: ink, borderWidth: 1.5 }),
+    ];
+    const ap = ctx.formXObject(ops, { BBox: [0, 0, w, h], Matrix: ROT_MATRIX[normRot(o.rot ?? 0)] });
+    const { x, y } = o.rect;
+    dict = ctx.obj({
+      ...common, Subtype: 'Text', Name: 'Comment', Open: false,
+      Rect: [x, y - o.rect.h, x + o.rect.w, y], Contents: PDFHexString.fromText(o.text),
+      AP: { N: ctx.register(ap) },
+    });
+  }
+  page.node.addAnnot(ctx.register(dict));
+}
+
 /**
  * Se o PDF foi gerado por este editor, devolve o projeto, as imagens e o PDF “base” (sem a camada
  * de objetos e sem o anexo), pronto para continuar editando. Caso contrário, devolve null.
@@ -198,7 +286,7 @@ export async function extractProject(bytes: Uint8Array): Promise<{ project: Proj
   const s = new TextDecoder('latin1').decode(bytes.subarray(Math.max(0, bytes.length - 4_000_000)));
   if (!s.includes(MARK_KEY) && !s.includes('EmbeddedFiles')) return null; // atalho: PDF comum
   const lib = await loadLib();
-  const { PDFDocument, PDFName, PDFArray, PDFRef } = lib;
+  const { PDFDocument, PDFName, PDFArray, PDFRef, PDFDict } = lib;
   let doc: PDFDocumentType;
   try { doc = await PDFDocument.load(bytes, { updateMetadata: false }); } catch { return null; }
 
@@ -218,12 +306,20 @@ export async function extractProject(bytes: Uint8Array): Promise<{ project: Proj
     if (list instanceof PDFArray) {
       for (let i = list.size() - 1; i >= 0; i--) if (isMarked(list.get(i))) list.remove(i);
     }
+    // 3) Remove as anotações criadas pelo editor (destaques e notas voltam como objetos editáveis)
+    const annots = page.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
+    for (let i = (annots?.size() ?? 0) - 1; annots && i >= 0; i--) {
+      const a = annots.lookup(i);
+      if (a instanceof PDFDict && a.get(PDFName.of(MARK_KEY)) === PDFName.of(MARK_VALUE)) {
+        const ref = annots.get(i);
+        annots.remove(i);
+        if (ref instanceof PDFRef) doc.context.delete(ref);
+      }
+    }
   }
 
   return { ...parsed, base: await doc.save({ updateFieldAppearances: false }) };
 }
-
-type Lib = typeof import('@cantoo/pdf-lib');
 
 /**
  * Lê o projeto do editor anexado ao PDF (editor-projeto.json). Com `remove`, tira o anexo do documento

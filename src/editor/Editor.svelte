@@ -1,14 +1,18 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { EditorState, type Tool } from './state.svelte';
+  import { DRAW_TOOLS, EditorState, type Tool } from './state.svelte';
   import { PdfView } from './viewer';
   import { takePending, isPdfFile, readPdf } from './session';
   import { canShareFiles, disposePrint, downloadPdf, printPdf, sharePdf } from './output';
   import { LINE, PAD, clamp, type ImageAsset } from './model';
   import { viewSize } from './geom';
   import { loadImageFile } from './images';
+  import { blends } from './draw';
+  import { startSketch, type Preview } from './sketch';
   import TextBox from './TextBox.svelte';
   import ObjBox from './ObjBox.svelte';
+  import MarkBox from './MarkBox.svelte';
+  import SketchPreview from './SketchPreview.svelte';
   import SignatureDialog from './SignatureDialog.svelte';
   import PropsPanel from './PropsPanel.svelte';
   import Thumbnails from './Thumbnails.svelte';
@@ -33,6 +37,10 @@
   import CheckCheck from '@lucide/svelte/icons/check-check';
   import ImageIcon from '@lucide/svelte/icons/image';
   import FieldIcon from '@lucide/svelte/icons/rectangle-ellipsis';
+  import Highlighter from '@lucide/svelte/icons/highlighter';
+  import PenLine from '@lucide/svelte/icons/pen-line';
+  import Shapes from '@lucide/svelte/icons/shapes';
+  import NoteIcon from '@lucide/svelte/icons/message-square-text';
   import Files from '@lucide/svelte/icons/files';
   import LayoutGrid from '@lucide/svelte/icons/layout-grid';
   import FileUp from '@lucide/svelte/icons/file-up';
@@ -52,6 +60,8 @@
   let organizeOpen = $state(false);
   let dragging = $state(false);
   let drawRect = $state<{ left: number; top: number; width: number; height: number } | null>(null);
+  let sketch = $state<Preview | null>(null); // desenho em andamento (Destacar, Caneta, Formas)
+  const drawing = $derived(DRAW_TOOLS.includes(ed.tool));
   const canShare = canShareFiles();
   const wide = matchMedia('(min-width: 900px)');
   let isWide = $state(wide.matches);
@@ -114,10 +124,11 @@
 
   // ================= criar objetos na página =================
   // Texto e Campos: toque/clique cria no tamanho padrão; arrastar (com mouse/caneta) desenha o tamanho.
-  // Símbolos: cada toque coloca o símbolo escolhido (ou a data de hoje).
+  // Símbolos e Nota: cada toque coloca um.
+  // Destacar, Caneta e Formas: arrastar desenha (sketch.ts); no celular, um dedo desenha e dois rolam.
   function onContainerPointerDown(e: PointerEvent) {
     const target = e.target as HTMLElement;
-    if (e.button !== 0 || target.closest('.tbox, .obox')) return;
+    if (e.button !== 0 || (!drawing && target.closest('.tbox, .obox, .mbox'))) return;
     const pageEl = target.closest<HTMLElement>('.page');
     if (ed.tool === 'select' || !pageEl || !ed.view) {
       if (ed.selectedId) ed.select(null);
@@ -126,6 +137,11 @@
     const tool = ed.tool;
     const view = ed.view;
     const page = Number(pageEl.dataset.pageNumber) - 1;
+    if (drawing) {
+      if (ed.selectedId) ed.select(null);
+      startSketch(e, ed, page, (p) => (sketch = p));
+      return;
+    }
     // Tudo na página como se vê (geom.ts): funciona igual em páginas giradas
     const [pw, ph] = viewSize(ed.geo(page));
     const [x0, y0] = view.clientToView(page, e.clientX, e.clientY);
@@ -134,7 +150,7 @@
     let rect: { x: number; y: number; w: number; h: number } | null = null;
 
     const onMove = (ev: PointerEvent) => {
-      if (ev.pointerType === 'touch' || tool === 'stamp') return; // no toque, arrastar rola a página
+      if (ev.pointerType === 'touch' || tool === 'stamp' || tool === 'note') return; // no toque, arrastar rola a página
       if (!rect && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < 6) return;
       const [x1, y1] = view.clientToView(page, ev.clientX, ev.clientY);
       const left = clamp(Math.min(x0, x1), 0, pw), right = clamp(Math.max(x0, x1), 0, pw);
@@ -153,6 +169,8 @@
       if (ev.pointerType === 'touch' && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) > 10) return;
       if (tool === 'stamp') {
         ed.addStamp(page, x0, y0);
+      } else if (tool === 'note') {
+        ed.addNote(page, x0, y0);
       } else if (tool === 'field') {
         if (rect && rect.w >= 8 && rect.h >= 6) ed.addField(page, rect);
         else if (ed.fieldType === 'check') ed.addField(page, { x: x0 - 6, y: y0 - 6, w: 12, h: 12 });
@@ -237,7 +255,7 @@
     else if (e.key === 'Enter') {
       e.preventDefault();
       const s = ed.selected;
-      if (s.kind === 'text' || (s.kind === 'field' && s.type === 'text')) ed.startEditing(s.id);
+      if (s.kind === 'text' || s.kind === 'note' || (s.kind === 'field' && s.type === 'text')) ed.startEditing(s.id);
       else if (s.kind === 'field') { s.value = s.value ? '' : 'sim'; ed.commit(); }
     }
     else if (moves[e.key]) { e.preventDefault(); ed.nudge(...moves[e.key]); }
@@ -250,6 +268,13 @@
       'Escolha o símbolo (ou a data) e toque na página para marcar. Cada toque coloca um.'],
     field: ['Clique ou arraste na página para criar um campo preenchível, ou use “Detectar campos”.',
       'Toque na página para criar um campo preenchível, ou use “Detectar campos”.'],
+    markup: ['Arraste sobre o texto para destacar, sublinhar ou riscar. Um clique numa palavra marca a palavra.',
+      'Arraste o dedo sobre o texto para marcar; um toque marca a palavra. Para rolar, use dois dedos.'],
+    ink: ['Desenhe arrastando na página. Para mover ou apagar um desenho, use Selecionar.',
+      'Desenhe com um dedo. Para rolar ou dar zoom, use dois dedos.'],
+    shape: ['Arraste na página para desenhar a forma. Para ajustar depois, use Selecionar.',
+      'Arraste com um dedo para desenhar a forma. Para rolar, use dois dedos.'],
+    note: ['Clique na página para deixar um comentário (nota).', 'Toque na página para deixar um comentário (nota).'],
   };
 
   function setTool(t: Tool) {
@@ -266,7 +291,7 @@
 <svelte:window onkeydown={onKeydown} />
 <svelte:document onvisibilitychange={onVisibility} />
 
-<div class="editor" class:text-mode={ed.tool !== 'select'}
+<div class="editor" class:text-mode={ed.tool !== 'select'} class:drawing
   role="application" aria-label="Editor de PDF"
   ondragover={(e) => { e.preventDefault(); dragging = true; }}
   ondragleave={(e) => { if (e.target === e.currentTarget) dragging = false; }}
@@ -322,6 +347,10 @@
       <button onclick={() => { setTool('select'); signOpen = true; }}><SignatureIcon size={20} /><span>Assinar</span></button>
       <button aria-pressed={ed.tool === 'stamp'} onclick={() => setTool('stamp')}><CheckCheck size={20} /><span>Símbolos</span></button>
       <button onclick={() => imageInput.click()}><ImageIcon size={20} /><span>Imagem</span></button>
+      <button aria-pressed={ed.tool === 'markup'} onclick={() => setTool('markup')}><Highlighter size={20} /><span>Destacar</span></button>
+      <button aria-pressed={ed.tool === 'ink'} onclick={() => setTool('ink')}><PenLine size={20} /><span>Caneta</span></button>
+      <button aria-pressed={ed.tool === 'shape'} onclick={() => setTool('shape')}><Shapes size={20} /><span>Formas</span></button>
+      <button aria-pressed={ed.tool === 'note'} onclick={() => setTool('note')}><NoteIcon size={20} /><span>Nota</span></button>
       <button aria-pressed={ed.tool === 'field'} onclick={() => setTool('field')}><FieldIcon size={20} /><span>Campos</span></button>
       <button class="narrow-only" aria-pressed={thumbsOpen} onclick={() => (thumbsOpen = !thumbsOpen)}><Files size={20} /><span>Páginas</span></button>
       <button class="narrow-only" aria-pressed={searchOpen} onclick={() => (searchOpen = !searchOpen)}><Search size={20} /><span>Buscar</span></button>
@@ -370,10 +399,22 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="viewer-container" bind:this={container} onpointerdown={onContainerPointerDown} hidden={!ed.hasDoc}>
         <div class="pdfViewer" bind:this={viewerDiv}></div>
+        <!-- Marca-texto e destaques multiplicam com a página, como no PDF (camada com mix-blend-mode) -->
+        <div class="mark-layer">
+          {#each ed.objects as obj (obj.id)}
+            {#if blends(obj)}
+              {#if obj.kind === 'markup'}<MarkBox {obj} {ed} />{:else if obj.kind !== 'text'}<ObjBox {obj} {ed} />{/if}
+            {/if}
+          {/each}
+        </div>
         <div class="object-layer">
           {#each ed.objects as obj (obj.id)}
-            {#if obj.kind === 'text'}<TextBox {obj} {ed} />{:else}<ObjBox {obj} {ed} />{/if}
+            {#if blends(obj)}<!-- na camada de cima -->
+            {:else if obj.kind === 'text'}<TextBox {obj} {ed} />
+            {:else if obj.kind === 'markup'}<MarkBox {obj} {ed} />
+            {:else}<ObjBox {obj} {ed} />{/if}
           {/each}
+          {#if sketch}<SketchPreview {ed} p={sketch} />{/if}
           {#if drawRect}
             <div class="draw-rect" style:left="{drawRect.left}px" style:top="{drawRect.top}px" style:width="{drawRect.width}px" style:height="{drawRect.height}px"></div>
           {/if}
@@ -455,7 +496,11 @@
   .menu button:hover { background: var(--surface-2); }
 
   /* ---------- ferramentas ---------- */
-  .tools { display: flex; gap: 4px; padding: 6px 8px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .tools {
+    display: flex; gap: 4px; padding: 6px 8px; background: var(--surface); border-bottom: 1px solid var(--border);
+    overflow-x: auto; scrollbar-width: thin;
+  }
+  .tools button { flex: none; }
   .tools button {
     display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 1px solid transparent;
     border-radius: 10px; background: none; color: var(--text); font: inherit; font-weight: 600; cursor: pointer;
@@ -485,6 +530,11 @@
   .viewer-container :global(.pdfViewer .page) { box-shadow: 0 1px 4px rgba(0,0,0,.18); margin: 12px auto; }
   .text-mode .viewer-container :global(.pdfViewer .page) { cursor: crosshair; }
   .object-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 1000; pointer-events: none; }
+  .mark-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 999; pointer-events: none; mix-blend-mode: multiply; }
+  /* Ferramentas de desenho: um dedo desenha (sem rolagem nativa nem seleção de texto) e os objetos não pegam o toque */
+  .drawing .viewer-container { touch-action: none; }
+  .drawing .viewer-container :global(.textLayer) { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .drawing .object-layer :global(*), .drawing .mark-layer :global(*) { pointer-events: none !important; }
   .draw-rect { position: absolute; border: 1.5px dashed #2457d6; background: rgba(36, 87, 214, .08); }
   .page-badge {
     position: absolute; right: 12px; bottom: 12px; z-index: 5; padding: 4px 10px; border-radius: 999px;

@@ -170,20 +170,24 @@ export class PdfView {
   // ---------- gestos ----------
   private attachGestures() {
     const c = this.container;
-    let pinch: { dist: number } | null = null;
+    let pinch: { dist: number; mid: [number, number] } | null = null;
     const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
     const mid = (t: TouchList): [number, number] => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
 
-    c.addEventListener('touchstart', (e) => { if (e.touches.length === 2) pinch = { dist: dist(e.touches) }; }, { passive: true });
+    c.addEventListener('touchstart', (e) => { if (e.touches.length === 2) pinch = { dist: dist(e.touches), mid: mid(e.touches) }; }, { passive: true });
     c.addEventListener('touchmove', (e) => {
       if (!pinch || e.touches.length !== 2) return;
       e.preventDefault(); // a pinça é do visualizador, não da página
+      // Dois dedos também rolam (nas ferramentas de desenho, um dedo desenha e a rolagem nativa fica desligada)
+      const m = mid(e.touches);
+      c.scrollBy(pinch.mid[0] - m[0], pinch.mid[1] - m[1]);
+      pinch.mid = m;
       const d = dist(e.touches);
       const factor = d / pinch.dist;
       if (Math.abs(factor - 1) < 0.02) return;
       const next = this.scale * factor;
       if (next < MIN_SCALE || next > MAX_SCALE) return;
-      this.zoomBy(factor, mid(e.touches));
+      this.zoomBy(factor, m);
       pinch.dist = d;
     }, { passive: false });
     const end = (e: TouchEvent) => { if (e.touches.length < 2) pinch = null; };

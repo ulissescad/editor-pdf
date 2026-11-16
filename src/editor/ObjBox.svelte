@@ -1,11 +1,14 @@
 <script lang="ts">
-  import { FONTS, LINE, keepsAspect, type FieldObj, type ImageObj, type SymbolObj } from './model';
+  import { FONTS, LINE, keepsAspect, type FieldObj, type ImageObj, type InkObj, type NoteObj, type ShapeObj, type SymbolObj } from './model';
   import { SYMBOL_DEFS } from './symbols';
+  import { NOTE_ICON, SHAPE_LABELS, inkPath, shapeGeometry } from './draw';
+  import { localSize, toView, viewSize } from './geom';
   import { CORNERS, HANDLES, startDrag } from './drag';
   import type { EditorState } from './state.svelte';
 
-  // Imagens, assinaturas, símbolos e campos de formulário (as caixas de texto têm o TextBox).
-  let { obj, ed }: { obj: ImageObj | SymbolObj | FieldObj; ed: EditorState } = $props();
+  // Imagens, assinaturas, símbolos, campos de formulário, caneta, formas e notas
+  // (as caixas de texto têm o TextBox; destaques, o MarkBox).
+  let { obj, ed }: { obj: ImageObj | SymbolObj | FieldObj | InkObj | ShapeObj | NoteObj; ed: EditorState } = $props();
 
   let input = $state<HTMLInputElement | HTMLTextAreaElement>();
   const selected = $derived(ed.selectedId === obj.id);
@@ -14,13 +17,28 @@
     void ed.layoutTick; // recalcula quando o zoom ou a página mudam
     return ed.view?.boxGeometry(obj) ?? { left: 0, top: 0, width: 0, height: 0, scale: 1, turn: 0, cw: 0, ch: 0 };
   });
-  const handles = $derived(keepsAspect(obj) || (obj.kind === 'field' && obj.type === 'check') ? CORNERS : HANDLES);
+  const handles = $derived(
+    obj.kind === 'note' ? [] : keepsAspect(obj) || (obj.kind === 'field' && obj.type === 'check') ? CORNERS : HANDLES,
+  );
+  const local = $derived(localSize(obj.rect, obj.rot)); // tamanho do conteúdo (pt), sem giro
+  // Nota perto da borda direita: o balão do comentário abre para a esquerda
+  const popLeft = $derived.by(() => {
+    if (obj.kind !== 'note') return false;
+    const g = ed.geo(obj.page);
+    return toView(obj.rect, g).x > viewSize(g)[0] * 0.55;
+  });
+  // Traços (caneta, formas vazadas): só o traço recebe o toque; o vazio deixa passar para o que está embaixo
+  const passThrough = $derived(obj.kind === 'ink' || (obj.kind === 'shape' && obj.shape !== 'whiteout'));
+  const hitWidth = $derived(obj.kind === 'ink' || obj.kind === 'shape' ? obj.width + 14 / geo.scale : 0);
   // Só objetos pequenos nas duas dimensões (símbolos, caixinhas) ganham área de toque extra;
   // num campo baixo e largo ela cobriria o campo vizinho
   const small = $derived(geo.width < 32 && geo.height < 32);
   const label = $derived(
     obj.kind === 'image' ? (obj.signature ? 'Assinatura' : 'Imagem')
       : obj.kind === 'symbol' ? `Símbolo ${SYMBOL_DEFS[obj.symbol].label.toLowerCase()}`
+      : obj.kind === 'ink' ? (obj.opacity !== undefined ? 'Marca-texto' : 'Desenho à mão')
+      : obj.kind === 'shape' ? SHAPE_LABELS[obj.shape]
+      : obj.kind === 'note' ? `Nota${obj.text ? `: ${obj.text}` : ''}`
       : `Campo ${obj.name}`,
   );
 
@@ -36,6 +54,7 @@
   });
 
   function tap() {
+    if (obj.kind === 'note') { ed.startEditing(obj.id); return; }
     if (obj.kind !== 'field') return;
     if (obj.type === 'check') { obj.value = obj.value ? '' : 'sim'; ed.commit(); }
     else ed.startEditing(obj.id);
@@ -43,7 +62,7 @@
 
   // Depois de um toque o navegador gera um mousedown “de compatibilidade”: não deixa tirar o foco do campo
   function onMouseDown(e: MouseEvent) {
-    if (!(e.target as HTMLElement).closest('.fvalue')) e.preventDefault();
+    if (!(e.target as HTMLElement).closest('.fvalue, .note-pop')) e.preventDefault();
   }
 
   function onPointerDown(e: PointerEvent) {
@@ -55,7 +74,7 @@
     e.preventDefault();
     e.stopPropagation();
     if (!selected) ed.select(obj.id);
-    const min = obj.kind === 'field' && obj.type === 'text' ? [20, 8] : [6, 6];
+    const min = obj.kind === 'field' && obj.type === 'text' ? [20, 8] : obj.kind === 'ink' || obj.kind === 'shape' ? [4, 4] : [6, 6];
     startDrag(e, {
       ed, obj, scale: geo.scale, mode: handle ?? 'move', minW: min[0], minH: min[1],
       aspect: keepsAspect(obj), onTap: handle || onGrip ? undefined : tap,
@@ -63,8 +82,10 @@
   }
 
   function onInput() {
-    if (obj.kind !== 'field' || !input) return;
-    obj.value = input.value;
+    if (!input) return;
+    if (obj.kind === 'field') obj.value = input.value;
+    else if (obj.kind === 'note') obj.text = input.value;
+    else return;
     ed.scheduleSave();
   }
 
@@ -86,6 +107,8 @@
   class:editing
   class:small
   class:check={obj.kind === 'field' && obj.type === 'check'}
+  class:pass={passThrough}
+  class:whiteout={obj.kind === 'shape' && obj.shape === 'whiteout'}
   data-id={obj.id}
   style:left="{geo.left}px"
   style:top="{geo.top}px"
@@ -97,7 +120,7 @@
   aria-checked={obj.kind === 'field' && obj.type === 'check' ? !!obj.value : undefined}
   aria-label={label}
 >
-  {#if selected}
+  {#if selected && obj.kind !== 'note'}
     <div class="grip" title="Arraste para mover" aria-hidden="true">✥ {obj.kind === 'field' ? obj.name : 'mover'}</div>
   {/if}
 
@@ -112,6 +135,27 @@
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d={def.path} fill={def.stroke ? 'none' : obj.color} stroke={def.stroke ? obj.color : 'none'}
         stroke-width={def.stroke ?? 0} stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  {:else if obj.kind === 'ink'}
+    {@const d = inkPath(obj.paths, local.w, local.h)}
+    <svg viewBox="0 0 {local.w} {local.h}" preserveAspectRatio="none" aria-hidden="true">
+      <path class="hit" {d} stroke-width={hitWidth} />
+      <path {d} fill="none" stroke={obj.color} stroke-width={obj.width} stroke-opacity={obj.opacity ?? 1}
+        stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  {:else if obj.kind === 'shape'}
+    {@const sg = shapeGeometry(obj, local.w, local.h)}
+    <svg viewBox="0 0 {local.w} {local.h}" preserveAspectRatio="none" aria-hidden="true">
+      {#if sg.stroke}<path class="hit" d={sg.stroke} stroke-width={hitWidth} />{/if}
+      {#if sg.fill}<path class="hit-fill" d={sg.fill} fill={obj.color} />{/if}
+      {#if sg.stroke}
+        <path d={sg.stroke} fill="none" stroke={obj.color} stroke-width={obj.width} stroke-linecap="round" stroke-linejoin="round" />
+      {/if}
+    </svg>
+  {:else if obj.kind === 'note'}
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d={NOTE_ICON.body} fill={obj.color} stroke={NOTE_ICON.ink} stroke-width="1.2" />
+      <path d={NOTE_ICON.lines} fill="none" stroke={NOTE_ICON.ink} stroke-width="1.5" />
     </svg>
   {:else if obj.type === 'check'}
     {#if obj.value}
@@ -132,6 +176,14 @@
   {#if selected}
     {#each handles as h (h)}<span class="handle" data-h={h}></span>{/each}
   {/if}
+
+  {#if obj.kind === 'note' && editing}
+    <div class="note-pop" class:left={popLeft} style:--c={obj.color}>
+      <textarea bind:this={input} value={obj.text} placeholder="Escreva o comentário" aria-label="Texto da nota" rows="4"
+        oninput={onInput} onblur={() => ed.editingId === obj.id && ed.stopEditing()} onkeydown={onKeydown}></textarea>
+      <small>O comentário vai para o PDF como nota: aparece ao tocar no ícone.</small>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -144,6 +196,13 @@
   .obox.field.selected { outline: 1.5px solid #7a3fd1; }
   .obox.field.check { background: rgba(122, 63, 209, .14); }
   .obox.editing { cursor: text; }
+  .obox.note.editing { cursor: move; }
+  /* Caneta e formas vazadas: só o traço recebe o toque (a área vazia deixa tocar no que está embaixo) */
+  .obox.pass { pointer-events: none; outline: 0; }
+  .obox.pass.selected { pointer-events: auto; outline: 1.5px dashed #2457d6; }
+  .obox.whiteout:not(.selected) { outline: 0; }
+  .hit { fill: none; stroke: transparent; stroke-linecap: round; stroke-linejoin: round; pointer-events: stroke; cursor: pointer; }
+  .hit-fill { pointer-events: fill; }
   /* Objetos pequenos (símbolos, caixinhas): área de toque maior, invisível */
   @media (pointer: coarse) { .obox.small::before { content: ''; position: absolute; inset: -8px; } }
   .inner { width: 100%; height: 100%; }
@@ -181,6 +240,17 @@
     cursor: move; user-select: none; touch-action: none; white-space: nowrap;
   }
   .field .grip { background: #7a3fd1; }
+  .note-pop {
+    position: absolute; left: 0; top: calc(100% + 6px); z-index: 2; width: 240px; padding: 8px; cursor: default;
+    background: var(--surface); color: var(--text); border: 1px solid var(--border); border-top: 4px solid var(--c);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .22);
+  }
+  .note-pop.left { left: auto; right: 0; }
+  .note-pop textarea {
+    display: block; width: 100%; box-sizing: border-box; resize: vertical; min-height: 72px; padding: 6px 8px;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font: 15px/1.35 system-ui, sans-serif;
+  }
+  .note-pop small { display: block; margin-top: 4px; color: var(--muted); font: 12px/1.3 system-ui, sans-serif; }
   @media (pointer: coarse) {
     .grip { top: -34px; height: 30px; line-height: 30px; padding: 0 12px; font-size: 14px; }
   }

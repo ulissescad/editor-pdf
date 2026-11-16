@@ -1,10 +1,15 @@
 // Estado do editor: documento aberto, objetos, seleção, ferramenta, histórico e rascunho automático.
 import { History } from './history';
 import {
-  DEFAULT_STYLE, FIELD_SIZE, PAD, cloneObj, fieldMultiline, isEmpty, makeField, makeImage, makeSymbol, makeText,
-  minHeight, newId, today, uniqueName,
-  type FieldObj, type FieldType, type ImageAsset, type Obj, type SymbolId, type TextStyle,
+  DEFAULT_STYLE, FIELD_SIZE, NOTE_SIZE, PAD, cloneObj, fieldMultiline, isEmpty, isFixed, makeField, makeImage, makeInk,
+  makeMarkup, makeNote, makeShape, makeSymbol, makeText, minHeight, newId, today, uniqueName,
+  type FieldObj, type FieldType, type ImageAsset, type InkObj, type MarkupType, type Obj, type ShapeType,
+  type SymbolId, type TextStyle,
 } from './model';
+import {
+  MARKER, MARKUP_DEFAULTS, NOTE_COLORS, WHITEOUT, isLineShape, packInk, packLine, shapeFamily, unionRect,
+} from './draw';
+import { canvasMeasure, textRuns, type Measure, type TextRun, type TextSelection } from './textsel';
 import { SYMBOL_SIZE } from './symbols';
 import { A4, clampView, fromView, localSize, normRot, toView, turnOf, viewSize, type PageGeo, type VRect } from './geom';
 import type { PdfView, FindResult } from './viewer';
@@ -14,7 +19,9 @@ import { baselineFactor, cssFont, fontsReady, measureLines } from './measure';
 import { deleteDraft, getDraft, saveDraft, sha256 } from '../storage/drafts';
 import type { PageSpec } from '../pdf/plan';
 
-export type Tool = 'select' | 'text' | 'stamp' | 'field';
+export type Tool = 'select' | 'text' | 'stamp' | 'field' | 'markup' | 'ink' | 'shape' | 'note';
+/** Ferramentas que desenham arrastando: no celular, um dedo desenha e dois dedos rolam. */
+export const DRAW_TOOLS: Tool[] = ['markup', 'ink', 'shape'];
 export type Stamp = SymbolId | 'date';
 export type StatusKind = 'ok' | 'warn' | 'err' | 'info';
 
@@ -36,6 +43,15 @@ export class EditorState {
   symbolColor = $state('#000000');
   symbolSize = $state(SYMBOL_SIZE);
   fieldType = $state<FieldType>('text');     // ferramenta Campos: tipo do próximo campo
+  markupType = $state<MarkupType>('highlight'); // ferramenta Destacar
+  markupColors = $state<Record<MarkupType, string>>({ ...MARKUP_DEFAULTS });
+  inkColor = $state('#1a3cc8');              // ferramenta Caneta
+  inkWidth = $state(2.5);
+  inkMarker = $state(false);                 // caneta marca-texto
+  shapeType = $state<ShapeType>('rect');     // ferramenta Formas
+  shapeColor = $state('#c62828');
+  shapeWidth = $state(2);
+  noteColor = $state(NOTE_COLORS[0]);        // ferramenta Nota
   // visualização
   scale = $state(1);
   currentPage = $state(1);
@@ -58,6 +74,9 @@ export class EditorState {
   readonly images = new Map<string, ImageAsset>(); // imagens e assinaturas usadas nesta sessão
   #imageUrls = new Map<string, string>();
   #saveTimer: ReturnType<typeof setTimeout> | null = null;
+  #runs = new Map<number, Promise<TextRun[]>>(); // texto de cada página (para destacar)
+  #measure: Measure | null = null;
+  #lastInk: { id: string; at: number } | null = null; // traço anterior (para juntar a escrita num objeto)
 
   get selected(): Obj | undefined { return this.objects.find((o) => o.id === this.selectedId); }
   get hasDoc() { return !!this.doc; }
@@ -135,6 +154,8 @@ export class EditorState {
     this.xfa = !!doc.isPureXfa;
     this.fields = doc.isPureXfa ? { editable: 0, readOnly: 0 } : await countFields(doc);
     this.#setImages(assets);
+    this.#runs.clear();
+    this.#lastInk = null;
     this.objects = objects.filter((o) => o.page < doc.numPages && (o.kind !== 'image' || this.images.has(o.imageId)));
     this.selectedId = this.editingId = null;
     this.tool = 'select';
@@ -269,6 +290,160 @@ export class EditorState {
     return this.#add(makeField(page, rect, type, name, FIELD_SIZE, rot));
   }
 
+  // ---------- anotações (M4) ----------
+  /** Texto da página com a geometria de cada trecho (carregado uma vez por página). */
+  textRuns(page: number): Promise<TextRun[]> {
+    let p = this.#runs.get(page);
+    if (!p) {
+      const doc = this.doc;
+      p = doc
+        ? doc.getPage(page + 1).then((pg) => pg.getTextContent())
+          .then((tc) => textRuns(tc.items as never[], tc.styles as never))
+          .catch(() => [] as TextRun[])
+        : Promise.resolve([]);
+      this.#runs.set(page, p);
+    }
+    return p;
+  }
+
+  get measure(): Measure { return (this.#measure ??= canvasMeasure()); }
+
+  /** Destacar/sublinhar/riscar: o texto selecionado ou, fora do texto, um retângulo (página vista). */
+  addMarkup(page: number, sel: TextSelection | VRect): Obj | null {
+    const type = this.markupType, color = this.markupColors[type];
+    let o: Obj;
+    if ('quads' in sel) {
+      if (!sel.quads.length) return null;
+      o = makeMarkup(page, unionRect(sel.quads), type, color, sel.quads, sel.text, sel.rot || undefined);
+    } else {
+      const { rect, rot } = this.#place(page, sel);
+      if (rect.w < 2 || rect.h < 2) return null;
+      o = makeMarkup(page, rect, type, color, [rect], '', rot);
+    }
+    this.objects.push(o);
+    this.commit();
+    return o;
+  }
+
+  /**
+   * Caneta: um traço (pt na página vista). Traços seguidos (menos de 1,5 s entre eles), na mesma página e
+   * com a mesma caneta, entram no mesmo objeto: uma palavra escrita vira um objeto só, e cada traço ainda
+   * pode ser desfeito.
+   */
+  addInkStroke(page: number, points: number[]): Obj | null {
+    if (points.length < 2) return null;
+    const marker = this.inkMarker;
+    const color = marker ? MARKER.color : this.inkColor;
+    const width = marker ? MARKER.width : this.inkWidth;
+    const opacity = marker ? MARKER.opacity : undefined;
+    const g = this.geo(page);
+    const rot = normRot(g.rotate) || undefined;
+    const last = this.#lastInk;
+    const prev = last && Date.now() - last.at < 1500
+      ? this.objects.find((o): o is InkObj => o.id === last.id && o.kind === 'ink') : undefined;
+    const strokes = [points];
+    let target: InkObj | undefined;
+    if (prev && prev.page === page && prev.color === color && prev.width === width && prev.opacity === opacity
+      && (prev.rot ?? 0) === (rot ?? 0)) {
+      // O objeto aparece em pé (giro igual ao da página): o quadro dele é o da página vista
+      const v = toView(prev.rect, g);
+      for (const p of prev.paths) strokes.unshift(p.map((n, i) => (i % 2 ? v.y + n * v.h : v.x + n * v.w)));
+      target = prev;
+    }
+    const { box, paths } = packInk(strokes, width);
+    const rect = fromView(box, g);
+    let o: InkObj;
+    if (target) {
+      target.rect = rect;
+      target.paths = paths;
+      o = target;
+    } else {
+      o = makeInk(page, rect, paths, color, width, opacity, rot);
+      this.objects.push(o);
+    }
+    this.#lastInk = { id: o.id, at: Date.now() };
+    this.commit();
+    return o;
+  }
+
+  /** Formas: retângulo/elipse/corretivo na caixa de a até b; linha/seta de a até b (pt na página vista). */
+  addShape(page: number, a: [number, number], b: [number, number]): Obj | null {
+    const shape = this.shapeType;
+    const g = this.geo(page);
+    const rot = normRot(g.rotate) || undefined;
+    const color = shape === 'whiteout' ? WHITEOUT : this.shapeColor;
+    let o: Obj;
+    if (isLineShape(shape)) {
+      if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 4) return null;
+      const { box, ends } = packLine(a, b, this.shapeWidth, shape === 'arrow');
+      o = makeShape(page, fromView(box, g), shape, color, this.shapeWidth, ends, rot);
+    } else {
+      const v = { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(b[0] - a[0]), h: Math.abs(b[1] - a[1]) };
+      if (v.w < 4 || v.h < 4) return null;
+      o = makeShape(page, this.#place(page, v).rect, shape, color, this.shapeWidth, undefined, rot);
+    }
+    this.objects.push(o);
+    this.commit();
+    return o;
+  }
+
+  /** Nota: ícone centrado no ponto tocado (página vista), já aberto para escrever. */
+  addNote(page: number, x: number, y: number): Obj {
+    const s = NOTE_SIZE;
+    const { rect, rot } = this.#place(page, { x: x - s / 2, y: y - s / 2, w: s, h: s });
+    return this.#add(makeNote(page, rect, this.noteColor, '', rot), true);
+  }
+
+  /** Destacar: troca o tipo ou a cor (o padrão e o selecionado). */
+  setMarkup(patch: { type?: MarkupType; color?: string }) {
+    const s = this.selected;
+    if (patch.type) this.markupType = patch.type;
+    const type = patch.type ?? (s?.kind === 'markup' ? s.type : this.markupType);
+    if (patch.color) this.markupColors = { ...this.markupColors, [type]: patch.color };
+    if (s?.kind !== 'markup') return;
+    if (patch.type && patch.type !== s.type) { s.type = patch.type; s.color = this.markupColors[patch.type]; }
+    if (patch.color) s.color = patch.color;
+    this.commit();
+  }
+
+  /** Caneta: cor, espessura ou marca-texto (o padrão e o selecionado). */
+  setInk(patch: { color?: string; width?: number; marker?: boolean }) {
+    if (patch.marker !== undefined) this.inkMarker = patch.marker;
+    else if (patch.color || patch.width) this.inkMarker = false; // escolher cor ou espessura volta à caneta comum
+    if (patch.color) this.inkColor = patch.color;
+    if (patch.width) this.inkWidth = patch.width;
+    this.#lastInk = null;
+    const s = this.selected;
+    if (s?.kind !== 'ink') return;
+    if (patch.color) s.color = patch.color;
+    if (patch.width) s.width = patch.width;
+    this.commit();
+  }
+
+  /** Formas: tipo, cor ou espessura (o padrão e o selecionado; o tipo só muda dentro da mesma família). */
+  setShape(patch: { shape?: ShapeType; color?: string; width?: number }) {
+    if (patch.shape) this.shapeType = patch.shape;
+    if (patch.color) this.shapeColor = patch.color;
+    if (patch.width) this.shapeWidth = patch.width;
+    const s = this.selected;
+    if (s?.kind !== 'shape') return;
+    if (patch.shape && shapeFamily(s.shape).includes(patch.shape)) {
+      s.shape = patch.shape;
+      if (patch.shape === 'whiteout') s.color = WHITEOUT;
+      else if (s.color === WHITEOUT) s.color = this.shapeColor;
+    }
+    if (patch.color && s.shape !== 'whiteout') s.color = patch.color;
+    if (patch.width) s.width = patch.width;
+    this.commit();
+  }
+
+  /** Nota: cor (a padrão e a da selecionada). */
+  setNote(patch: { color?: string }) {
+    if (patch.color) this.noteColor = patch.color;
+    const s = this.selected;
+    if (s?.kind === 'note' && patch.color) { s.color = patch.color; this.commit(); }
+  }
+
   /** Detecta campos nas páginas (PDF sem formulário) e cria os campos sugeridos. */
   async detectFields() {
     if (!this.doc) return;
@@ -307,6 +482,17 @@ export class EditorState {
     if (cur?.kind === 'text') this.style = { ...cur.style };
     if (cur?.kind === 'symbol') { this.stamp = cur.symbol; this.symbolColor = cur.color; }
     if (cur?.kind === 'field') this.fieldType = cur.type;
+    if (cur?.kind === 'markup') this.markupType = cur.type;
+    if (cur?.kind === 'ink') {
+      this.inkMarker = (cur.opacity ?? 1) < 1;
+      if (!this.inkMarker) { this.inkColor = cur.color; this.inkWidth = cur.width; }
+    }
+    if (cur?.kind === 'shape') {
+      this.shapeType = cur.shape;
+      this.shapeWidth = cur.width;
+      if (cur.shape !== 'whiteout') this.shapeColor = cur.color;
+    }
+    if (cur?.kind === 'note') this.noteColor = cur.color;
     this.commit();
   }
 
@@ -322,11 +508,11 @@ export class EditorState {
 
   duplicate(id = this.selectedId) {
     const src = this.objects.find((o) => o.id === id);
-    if (!src) return;
+    if (!src || isFixed(src)) return; // marcações ficam presas ao texto
     this.#paste(src);
   }
 
-  copy() { const s = this.selected; if (s) this.#clipboard = cloneObj($state.snapshot(s) as Obj); }
+  copy() { const s = this.selected; if (s && !isFixed(s)) this.#clipboard = cloneObj($state.snapshot(s) as Obj); }
   paste() { if (this.#clipboard) this.#paste(this.#clipboard); }
 
   #paste(src: Obj) {
@@ -382,7 +568,7 @@ export class EditorState {
   /** Move o selecionado (pt na página vista; dy > 0 = para baixo). */
   nudge(dx: number, dy: number) {
     const s = this.selected;
-    if (!s) return;
+    if (!s || isFixed(s)) return;
     const v = toView(s.rect, this.geo(s.page));
     this.setViewRect(s, { ...v, x: v.x + dx, y: v.y + dy });
     this.commit();
