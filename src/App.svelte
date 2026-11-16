@@ -18,6 +18,15 @@
     organizar: () => import('./tools/OrganizeTool.svelte'),
     'imagens-para-pdf': () => import('./tools/ImagesTool.svelte'),
     'pdf-para-imagens': () => import('./tools/PdfToImagesTool.svelte'),
+    comprimir: () => import('./tools/CompressTool.svelte'),
+    proteger: () => import('./tools/ProtectTool.svelte'),
+    desbloquear: () => import('./tools/UnlockTool.svelte'),
+    'marca-dagua': () => import('./tools/WatermarkTool.svelte'),
+    numerar: () => import('./tools/NumbersTool.svelte'),
+    recortar: () => import('./tools/CropTool.svelte'),
+    tarjar: () => import('./tools/RedactTool.svelte'),
+    achatar: () => import('./tools/FlattenTool.svelte'),
+    propriedades: () => import('./tools/PropertiesTool.svelte'),
   };
   const toolView = $derived(router.current.name === 'tool' ? TOOL_VIEWS[router.current.id] : undefined);
 </script>

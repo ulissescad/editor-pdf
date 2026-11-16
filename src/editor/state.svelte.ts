@@ -122,9 +122,13 @@ export class EditorState {
     } catch (err) {
       console.error(err);
       const e = err as { name?: string };
-      this.status = { kind: 'err', text: e?.name === 'PasswordException'
-        ? 'Este PDF é protegido por senha. A ferramenta “Desbloquear PDF” chega numa próxima versão.'
-        : 'Não foi possível abrir este arquivo. Verifique se é um PDF válido.' };
+      this.status = e?.name === 'PasswordException'
+        ? {
+          kind: 'err', text: 'Este PDF é protegido por senha.',
+          // Leva o arquivo para a ferramenta de desbloquear (sem sair da página)
+          action: { label: 'Desbloquear', run: () => { import('../tools/handoff').then((h) => h.sendToTool('desbloquear', [{ name, bytes }])); } },
+        }
+        : { kind: 'err', text: 'Não foi possível abrir este arquivo. Verifique se é um PDF válido.' };
     } finally {
       this.loading = false;
     }

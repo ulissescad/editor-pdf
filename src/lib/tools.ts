@@ -30,19 +30,19 @@ export interface Tool {
 export const TOOLS: Tool[] = [
   { id: 'juntar', name: 'Juntar PDF', description: 'Combine vários PDFs em um só, na ordem que quiser.', icon: Merge, milestone: 'M3', ready: true },
   { id: 'dividir', name: 'Dividir PDF', description: 'Separe páginas ou intervalos em arquivos diferentes.', icon: Split, milestone: 'M3', ready: true },
-  { id: 'comprimir', name: 'Comprimir PDF', description: 'Diminua o tamanho do arquivo mantendo a qualidade.', icon: Minimize2, milestone: 'M5', ready: false },
+  { id: 'comprimir', name: 'Comprimir PDF', description: 'Diminua o tamanho do arquivo mantendo a qualidade.', icon: Minimize2, milestone: 'M5', ready: true },
   { id: 'assinar', name: 'Assinar PDF', description: 'Desenhe, digite ou use a foto da sua assinatura.', icon: Signature, milestone: 'M2', ready: true },
   { id: 'organizar', name: 'Organizar páginas', description: 'Reordene, gire, exclua e insira páginas.', icon: LayoutGrid, milestone: 'M3', ready: true },
   { id: 'imagens-para-pdf', name: 'Imagens para PDF', description: 'Transforme fotos e imagens em um PDF.', icon: Images, milestone: 'M3', ready: true },
   { id: 'pdf-para-imagens', name: 'PDF para imagens', description: 'Salve cada página como JPG ou PNG.', icon: FileImage, milestone: 'M3', ready: true },
-  { id: 'proteger', name: 'Proteger com senha', description: 'Criptografe o PDF com uma senha (AES-256).', icon: Lock, milestone: 'M5', ready: false },
-  { id: 'desbloquear', name: 'Desbloquear PDF', description: 'Remova a senha de um PDF que você pode abrir.', icon: LockOpen, milestone: 'M5', ready: false },
-  { id: 'marca-dagua', name: 'Marca d’água', description: 'Aplique texto ou imagem em todas as páginas.', icon: Droplets, milestone: 'M5', ready: false },
-  { id: 'numerar', name: 'Numerar páginas', description: 'Adicione números de página no formato que quiser.', icon: ListOrdered, milestone: 'M5', ready: false },
-  { id: 'recortar', name: 'Recortar margens', description: 'Corte as bordas das páginas.', icon: Crop, milestone: 'M5', ready: false },
-  { id: 'tarjar', name: 'Tarjar informações', description: 'Remova de verdade textos sensíveis.', icon: Eraser, milestone: 'M5', ready: false },
-  { id: 'achatar', name: 'Achatar PDF', description: 'Torne campos e anotações parte fixa da página.', icon: Layers, milestone: 'M5', ready: false },
-  { id: 'propriedades', name: 'Propriedades', description: 'Edite título, autor e assunto do documento.', icon: Info, milestone: 'M5', ready: false },
+  { id: 'proteger', name: 'Proteger com senha', description: 'Criptografe o PDF com uma senha (AES-256).', icon: Lock, milestone: 'M5', ready: true },
+  { id: 'desbloquear', name: 'Desbloquear PDF', description: 'Remova a senha de um PDF que você pode abrir.', icon: LockOpen, milestone: 'M5', ready: true },
+  { id: 'marca-dagua', name: 'Marca d’água', description: 'Aplique texto ou imagem em todas as páginas.', icon: Droplets, milestone: 'M5', ready: true },
+  { id: 'numerar', name: 'Numerar páginas', description: 'Adicione números de página no formato que quiser.', icon: ListOrdered, milestone: 'M5', ready: true },
+  { id: 'recortar', name: 'Recortar margens', description: 'Corte as bordas das páginas.', icon: Crop, milestone: 'M5', ready: true },
+  { id: 'tarjar', name: 'Tarjar informações', description: 'Remova de verdade textos sensíveis.', icon: Eraser, milestone: 'M5', ready: true },
+  { id: 'achatar', name: 'Achatar PDF', description: 'Torne campos e anotações parte fixa da página.', icon: Layers, milestone: 'M5', ready: true },
+  { id: 'propriedades', name: 'Propriedades', description: 'Edite título, autor e assunto do documento.', icon: Info, milestone: 'M5', ready: true },
 ];
 
 export const findTool = (id: string): Tool | undefined => TOOLS.find((t) => t.id === id);

@@ -29,12 +29,12 @@
   ondragleave={() => (dragging = false)}
   ondrop={(e) => { e.preventDefault(); dragging = false; pick(e.dataTransfer?.files); }}>
   <div class="buttons">
-    <button class="button" class:primary={!compact} onclick={() => input.click()}>
+    <button type="button" class="button" class:primary={!compact} onclick={() => input.click()}>
       {#if compact}<Plus size={18} aria-hidden="true" />{:else}<FileUp size={20} aria-hidden="true" />{/if}
       {label}
     </button>
     {#if camera && touch}
-      <button class="button" onclick={() => cameraInput?.click()}><Camera size={20} aria-hidden="true" /> Tirar foto</button>
+      <button type="button" class="button" onclick={() => cameraInput?.click()}><Camera size={20} aria-hidden="true" /> Tirar foto</button>
     {/if}
   </div>
   {#if !compact && hint}<p class="hint">{hint}</p>{/if}

@@ -5,7 +5,7 @@ os arquivos nunca saem do aparelho de quem usa. Funciona offline e pode ser inst
 
 O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
 
-## Situação atual (marco M4)
+## Situação atual (marco M5)
 
 - **Editor** (`#/editor`), pensado primeiro para o celular:
   - preencher formulários (AcroForm e XFA);
@@ -27,10 +27,21 @@ O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
   - **rascunho automático** no próprio navegador (“Continuar de onde parou”);
   - **PDF reeditável**: o PDF baixado, reaberto aqui, volta com textos, imagens, assinaturas, símbolos e anotações editáveis;
   - baixar, compartilhar (WhatsApp, e-mail…) e imprimir.
-- **Ferramentas prontas**: Assinar PDF, **Juntar PDF**, **Dividir PDF** (intervalos, uma página por arquivo ou
+- **Ferramentas de páginas**: Assinar PDF, **Juntar PDF**, **Dividir PDF** (intervalos, uma página por arquivo ou
   escolher páginas; vários arquivos saem num ZIP), **Organizar páginas**, **Imagens para PDF** (com a câmera do celular)
   e **PDF para imagens** (JPG ou PNG). Os formulários continuam preenchíveis depois de juntar ou dividir, e PDFs
-  feitos no editor continuam reeditáveis. As demais ferramentas chegam no marco M5.
+  feitos no editor continuam reeditáveis.
+- **Otimizar e proteger**:
+  - **Comprimir**: leve (reduz as fotos para 150 ppp e limpa o arquivo, sem mexer no texto) ou forte (as páginas
+    viram imagens); mostra o tamanho antes e depois e nunca entrega um arquivo maior;
+  - **Proteger com senha** (AES-256, com restrições opcionais de imprimir, copiar e alterar) e **Desbloquear**
+    (com a senha certa; PDFs que só têm restrições são liberados direto), pelo qpdf em WebAssembly, baixado só quando usado;
+  - **Marca d’água** (texto ou imagem, diagonal ou mosaico, por cima ou por baixo do conteúdo, com opacidade) e
+    **Numerar páginas** (6 posições, “1 de N”, capa sem número), com prévia real e certas também em páginas giradas;
+  - **Recortar margens** (em mm ou automático, cortando o branco em volta do conteúdo);
+  - **Tarjar informações**: arrastar sobre a página ou procurar no texto (palavras, CPF, CNPJ, e-mail, telefone);
+    a página com tarja vira imagem e o texto coberto deixa de existir no arquivo;
+  - **Achatar** (campos e anotações viram parte fixa da página) e **Propriedades** (título, autor, assunto…).
 - Bibliotecas, fontes, CMaps e WebAssembly servidos pelo próprio site, com CSP que bloqueia qualquer outra origem.
 - Offline depois da primeira visita (service worker) e instalável.
 
@@ -72,8 +83,9 @@ Os PDFs de teste são gerados por script (`npm run fixtures`). **Não versione P
 index.html, src/main.ts, src/App.svelte   página inicial e rotas (#/editor, #/ferramenta/<id>)
 src/editor/                               editor: estado, objetos, visualizador (pdf.js), caixas, assinatura, detecção de campos,
                                           páginas giradas (geom.ts)
-src/pdf/                                  abertura (pdf.js), gravação/reabertura do PDF e montagem de páginas (pdf-lib)
-src/tools/                                ferramentas: juntar, dividir, organizar, imagens ↔ PDF (carregadas sob demanda)
+src/pdf/                                  abertura (pdf.js), gravação/reabertura do PDF, montagem de páginas (pdf-lib), senha (qpdf.ts),
+                                          compressão, carimbos, recorte, tarja, achatar e propriedades
+src/tools/                                ferramentas (carregadas sob demanda); OneFileTool.svelte é a moldura das de um arquivo só
 src/storage/                              rascunhos automáticos e assinaturas guardadas (IndexedDB)
 src/lib/                                  catálogo de ferramentas, rotas, PWA
 config/site.ts                            caminho base e política de segurança (CSP)
@@ -85,4 +97,4 @@ tests/unit, tests/e2e, tests/fixtures     testes e geração de PDFs sintéticos
 
 pdf.js (Apache-2.0) · @cantoo/pdf-lib (MIT) · Svelte (MIT) · Lucide (ISC) · Workbox/vite-plugin-pwa (MIT) ·
 @cantoo/fontkit (MIT) · fflate (MIT) · fontes Arimo, Tinos, Cousine, Open Sans, Dancing Script, Great Vibes e Caveat (OFL, via Fontsource) ·
-qpdf-wasm (ISC, usado a partir do M5; hoje só nos testes de viabilidade)
+qpdf-wasm (ISC; o qpdf em si é Apache-2.0)

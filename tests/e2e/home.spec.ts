@@ -20,21 +20,20 @@ test('alvos de toque dos botões principais têm pelo menos 44 px', async ({ pag
   expect(box!.height).toBeGreaterThanOrEqual(44);
 });
 
-test('ferramenta ainda não pronta abre a página “em breve” e volta ao início', async ({ page }) => {
-  await page.goto('./');
-  await page.getByRole('link', { name: /Comprimir PDF/ }).click();
-  await expect(page).toHaveURL(/#\/ferramenta\/comprimir$/);
-  await expect(page.getByRole('heading', { name: 'Comprimir PDF' })).toBeVisible();
-  await expect(page.getByText('em desenvolvimento')).toBeVisible();
-  await page.getByRole('link', { name: 'Todas as ferramentas' }).click();
+test('endereço de ferramenta inexistente avisa e volta ao início', async ({ page }) => {
+  await page.goto('./#/ferramenta/nao-existe');
+  await expect(page.getByRole('heading', { name: 'Ferramenta não encontrada' })).toBeVisible();
+  await page.getByRole('link', { name: 'Ver todas as ferramentas' }).click();
   await expect(page.locator('.grid .card')).toHaveCount(15);
 });
 
-test('ferramentas do M3 estão prontas (sem “Em breve”)', async ({ page }) => {
+test('todas as ferramentas estão prontas (sem “Em breve”)', async ({ page }) => {
   await page.goto('./');
-  for (const name of ['Juntar PDF', 'Dividir PDF', 'Organizar páginas', 'Imagens para PDF', 'PDF para imagens', 'Assinar PDF']) {
-    await expect(page.locator('.grid .card', { hasText: name }).locator('.badge')).toHaveCount(0);
-  }
+  await expect(page.locator('.grid .card .badge')).toHaveCount(0);
+  await page.getByRole('link', { name: /Comprimir PDF/ }).click();
+  await expect(page).toHaveURL(/#\/ferramenta\/comprimir$/);
+  await expect(page.getByRole('button', { name: 'Escolher PDF' })).toBeVisible();
+  await page.getByRole('link', { name: 'Todas as ferramentas' }).click();
   await page.getByRole('link', { name: /Juntar PDF/ }).click();
   await expect(page.getByRole('button', { name: 'Escolher PDFs' })).toBeVisible();
 });
