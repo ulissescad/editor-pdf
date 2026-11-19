@@ -14,8 +14,10 @@ import Crop from '@lucide/svelte/icons/crop';
 import Eraser from '@lucide/svelte/icons/eraser';
 import Layers from '@lucide/svelte/icons/layers';
 import Info from '@lucide/svelte/icons/info';
+import ScanLine from '@lucide/svelte/icons/scan-line';
+import GitCompare from '@lucide/svelte/icons/git-compare-arrows';
 
-export type Milestone = 'M2' | 'M3' | 'M5';
+export type Milestone = 'M2' | 'M3' | 'M5' | 'M6';
 
 export interface Tool {
   id: string;            // usado na rota: #/ferramenta/<id>
@@ -35,6 +37,8 @@ export const TOOLS: Tool[] = [
   { id: 'organizar', name: 'Organizar páginas', description: 'Reordene, gire, exclua e insira páginas.', icon: LayoutGrid, milestone: 'M3', ready: true },
   { id: 'imagens-para-pdf', name: 'Imagens para PDF', description: 'Transforme fotos e imagens em um PDF.', icon: Images, milestone: 'M3', ready: true },
   { id: 'pdf-para-imagens', name: 'PDF para imagens', description: 'Salve cada página como JPG ou PNG.', icon: FileImage, milestone: 'M3', ready: true },
+  { id: 'digitalizar', name: 'Digitalizar', description: 'Fotografe um documento e endireite as páginas.', icon: ScanLine, milestone: 'M6', ready: true },
+  { id: 'comparar', name: 'Comparar PDFs', description: 'Veja o que mudou no texto entre duas versões.', icon: GitCompare, milestone: 'M6', ready: true },
   { id: 'proteger', name: 'Proteger com senha', description: 'Criptografe o PDF com uma senha (AES-256).', icon: Lock, milestone: 'M5', ready: true },
   { id: 'desbloquear', name: 'Desbloquear PDF', description: 'Remova a senha de um PDF que você pode abrir.', icon: LockOpen, milestone: 'M5', ready: true },
   { id: 'marca-dagua', name: 'Marca d’água', description: 'Aplique texto ou imagem em todas as páginas.', icon: Droplets, milestone: 'M5', ready: true },

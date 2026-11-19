@@ -5,7 +5,7 @@ os arquivos nunca saem do aparelho de quem usa. Funciona offline e pode ser inst
 
 O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
 
-## Situação atual (marco M5)
+## Situação atual (marco M6)
 
 - **Editor** (`#/editor`), pensado primeiro para o celular:
   - preencher formulários (AcroForm e XFA);
@@ -42,6 +42,12 @@ O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
   - **Tarjar informações**: arrastar sobre a página ou procurar no texto (palavras, CPF, CNPJ, e-mail, telefone);
     a página com tarja vira imagem e o texto coberto deixa de existir no arquivo;
   - **Achatar** (campos e anotações viram parte fixa da página) e **Propriedades** (título, autor, assunto…).
+- **Digitalizar**: fotografe o documento, marque os 4 cantos e a página sai reta, sem sombras (filtros Documento,
+  Original, Cinza e Preto e branco), em A4, Carta ou na proporção do papel.
+- **Comparar PDFs**: mostra o que saiu e o que entrou no texto entre duas versões, marcado nas páginas, e gera os PDFs
+  marcados. Compara só o texto (imagens e formatação não entram).
+- **Receber arquivos**: com o site instalado, ele aparece em “Compartilhar” no Android e em “Abrir com” no Chrome e no
+  Edge do computador.
 - Bibliotecas, fontes, CMaps e WebAssembly servidos pelo próprio site, com CSP que bloqueia qualquer outra origem.
 - Offline depois da primeira visita (service worker) e instalável.
 
@@ -84,10 +90,11 @@ index.html, src/main.ts, src/App.svelte   página inicial e rotas (#/editor, #/f
 src/editor/                               editor: estado, objetos, visualizador (pdf.js), caixas, assinatura, detecção de campos,
                                           páginas giradas (geom.ts)
 src/pdf/                                  abertura (pdf.js), gravação/reabertura do PDF, montagem de páginas (pdf-lib), senha (qpdf.ts),
-                                          compressão, carimbos, recorte, tarja, achatar e propriedades
+                                          compressão, carimbos, recorte, tarja, achatar, propriedades, perspectiva e comparação
 src/tools/                                ferramentas (carregadas sob demanda); OneFileTool.svelte é a moldura das de um arquivo só
 src/storage/                              rascunhos automáticos e assinaturas guardadas (IndexedDB)
-src/lib/                                  catálogo de ferramentas, rotas, PWA
+src/lib/                                  catálogo de ferramentas, rotas, PWA, arquivos recebidos de outros apps
+public/share-target.js                    parte do service worker que recebe o “Compartilhar”
 config/site.ts                            caminho base e política de segurança (CSP)
 tests/unit, tests/e2e, tests/fixtures     testes e geração de PDFs sintéticos
 .github/workflows/deploy.yml              testes + publicação no GitHub Pages

@@ -4,12 +4,14 @@
 export type Route =
   | { name: 'home' }
   | { name: 'editor' }
+  | { name: 'received' }   // arquivo vindo do “Compartilhar” do sistema
   | { name: 'tool'; id: string };
 
 export function parseHash(hash: string): Route {
   const path = hash.replace(/^#\/?/, '').replace(/\/+$/, '');
   const [first, second] = path.split('/');
   if (first === 'editor') return { name: 'editor' };
+  if (first === 'recebido') return { name: 'received' };
   if (first === 'ferramenta' && second) return { name: 'tool', id: decodeURIComponent(second) };
   return { name: 'home' };
 }
@@ -17,5 +19,6 @@ export function parseHash(hash: string): Route {
 export function hrefFor(route: Route): string {
   if (route.name === 'tool') return `#/ferramenta/${encodeURIComponent(route.id)}`;
   if (route.name === 'editor') return '#/editor';
+  if (route.name === 'received') return '#/recebido';
   return '#/';
 }

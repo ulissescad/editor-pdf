@@ -4,6 +4,7 @@
   import Home from './routes/Home.svelte';
   import ToolSoon from './routes/ToolSoon.svelte';
   import SignTool from './routes/SignTool.svelte';
+  import Received from './routes/Received.svelte';
   import UpdateToast from './components/UpdateToast.svelte';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import type { Component } from 'svelte';
@@ -27,6 +28,8 @@
     tarjar: () => import('./tools/RedactTool.svelte'),
     achatar: () => import('./tools/FlattenTool.svelte'),
     propriedades: () => import('./tools/PropertiesTool.svelte'),
+    digitalizar: () => import('./tools/ScanTool.svelte'),
+    comparar: () => import('./tools/CompareTool.svelte'),
   };
   const toolView = $derived(router.current.name === 'tool' ? TOOL_VIEWS[router.current.id] : undefined);
 </script>
@@ -56,7 +59,9 @@
   </header>
 
   <main id="conteudo" tabindex="-1">
-    {#if router.current.name === 'tool' && router.current.id === 'assinar'}
+    {#if router.current.name === 'received'}
+      <Received />
+    {:else if router.current.name === 'tool' && router.current.id === 'assinar'}
       <SignTool />
     {:else if toolView}
       {#key toolView}

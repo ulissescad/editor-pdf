@@ -1,12 +1,12 @@
 <script lang="ts">
   // Juntar PDFs (PLANO.md, item 2.1): vários arquivos em um, na ordem escolhida.
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import ToolPage from './ToolPage.svelte';
   import FileDrop from './FileDrop.svelte';
   import Result from './Result.svelte';
   import { Thumbs, formatSize, thumb } from './thumbs';
   import { moveItem, sortable } from './sortable';
-  import { openError, readPdfFiles, sendToTool, type OutFile, type ToolFile } from './handoff';
+  import { openError, readPdfFiles, sendToTool, takeFiles, type OutFile, type ToolFile } from './handoff';
   import { requestOpen } from '../editor/session';
   import { allPages, baseName } from '../pdf/plan';
   import ArrowUp from '@lucide/svelte/icons/arrow-up';
@@ -29,10 +29,16 @@
 
   const totalPages = $derived(entries.reduce((n, e) => n + e.pages, 0));
 
+  // PDFs compartilhados de outro app chegam prontos
+  onMount(() => { const files = takeFiles('juntar'); if (files.length) addPdfs(files); });
+
   async function addFiles(list: File[]) {
     error = '';
     const { ok, rejected } = await readPdfFiles(list);
-    const problems: string[] = rejected.length ? [`Não é PDF: ${rejected.join(', ')}`] : [];
+    await addPdfs(ok, rejected.length ? [`Não é PDF: ${rejected.join(', ')}`] : []);
+  }
+
+  async function addPdfs(ok: ToolFile[], problems: string[] = []) {
     busy = 'Abrindo…';
     try {
       for (const f of ok) {

@@ -1,12 +1,12 @@
 <script lang="ts">
   // Imagens para PDF (PLANO.md, item 2.4): fotos e imagens (JPG, PNG, WebP…), inclusive da câmera do
   // celular, uma por página. As fotos são reduzidas para no máximo 2400 px e respeitam a orientação.
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import ToolPage from './ToolPage.svelte';
   import FileDrop from './FileDrop.svelte';
   import Result from './Result.svelte';
   import { moveItem, sortable } from './sortable';
-  import type { OutFile } from './handoff';
+  import { takeFiles, type OutFile } from './handoff';
   import { requestOpen } from '../editor/session';
   import { assetFromCanvas, loadImageFile } from '../editor/images';
   import type { ImageAsset } from '../editor/model';
@@ -31,6 +31,11 @@
   let seq = 0;
 
   onDestroy(() => entries.forEach((e) => URL.revokeObjectURL(e.url)));
+  // Imagens compartilhadas de outro app chegam prontas
+  onMount(() => {
+    const handed = takeFiles('imagens-para-pdf');
+    if (handed.length) addFiles(handed.map((f) => new File([f.bytes as BlobPart], f.name)));
+  });
 
   const urlOf = (a: ImageAsset) => URL.createObjectURL(new Blob([a.bytes as BlobPart], { type: a.mime }));
   const isImage = (f: File) => /^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|bmp|heic|heif|avif)$/i.test(f.name);

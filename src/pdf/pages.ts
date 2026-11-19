@@ -277,12 +277,17 @@ export interface ImagePageOptions {
   margin: number;            // pt
 }
 
-export interface ImageInput { mime: 'image/png' | 'image/jpeg'; bytes: Uint8Array; w: number; h: number }
+export interface ImageInput {
+  mime: 'image/png' | 'image/jpeg'; bytes: Uint8Array; w: number; h: number;
+  /** Tamanho exato da página (pt), com a imagem ocupando-a inteira (páginas digitalizadas). */
+  page?: [number, number];
+}
 
 const SIZES: Record<Exclude<PageSizeId, 'image'>, [number, number]> = { a4: [595.28, 841.89], letter: [612, 792] };
 
 /** Tamanho da página e onde a imagem fica (centralizada, inteira, dentro da margem). */
-export function imageLayout(img: { w: number; h: number }, o: ImagePageOptions) {
+export function imageLayout(img: { w: number; h: number; page?: [number, number] }, o: ImagePageOptions) {
+  if (img.page) return { page: img.page, x: 0, y: 0, w: img.page[0], h: img.page[1] };
   // “Igual à imagem”: 1 px = 0,75 pt (96 ppp), limitado a uma folha A3 no lado maior
   if (o.size === 'image') {
     const k = Math.min(0.75, 1190 / Math.max(img.w, img.h));

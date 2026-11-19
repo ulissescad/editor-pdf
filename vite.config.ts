@@ -53,6 +53,14 @@ export default defineConfig({
         display: 'standalone',
         start_url: './',
         scope: './',
+        // Com o site instalado: aparece em “Compartilhar” (Android) e em “Abrir com” (Chrome/Edge no computador)
+        share_target: {
+          action: './compartilhar',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: { files: [{ name: 'file', accept: ['application/pdf', '.pdf', 'image/*'] }] },
+        },
+        file_handlers: [{ action: './', accept: { 'application/pdf': ['.pdf'] } }],
         icons: [
           { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
@@ -61,6 +69,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        importScripts: ['share-target.js'], // recebe os arquivos do “Compartilhar” (public/share-target.js)
         // Tudo que o site precisa para funcionar offline, inclusive os arquivos de apoio do pdf.js
         // .woff: as fontes extras são embutidas no PDF a partir do WOFF (o WOFF2 fica para a tela)
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico,woff2,wasm,bcmap,pfb,ttf,icc}', '**/{open-sans,caveat,dancing-script}-*.woff'],
