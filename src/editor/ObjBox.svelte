@@ -4,6 +4,7 @@
   import { NOTE_ICON, SHAPE_LABELS, inkPath, shapeGeometry } from './draw';
   import { localSize, toView, viewSize } from './geom';
   import { CORNERS, HANDLES, startDrag } from './drag';
+  import { keepAboveKeyboard } from './keyboard';
   import type { EditorState } from './state.svelte';
 
   // Imagens, assinaturas, símbolos, campos de formulário, caneta, formas e notas
@@ -48,10 +49,8 @@
     input.focus({ preventScroll: true });
     const len = input.value.length;
     input.setSelectionRange(len, len);
-    if (matchMedia('(pointer: coarse)').matches) {
-      setTimeout(() => input?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
-    }
   });
+  $effect(() => (editing && input ? keepAboveKeyboard(input) : undefined));
 
   function tap() {
     if (obj.kind === 'note') { ed.startEditing(obj.id); return; }
@@ -77,7 +76,7 @@
     const min = obj.kind === 'field' && obj.type === 'text' ? [20, 8] : obj.kind === 'ink' || obj.kind === 'shape' ? [4, 4] : [6, 6];
     startDrag(e, {
       ed, obj, scale: geo.scale, mode: handle ?? 'move', minW: min[0], minH: min[1],
-      aspect: keepsAspect(obj), onTap: handle || onGrip ? undefined : tap,
+      aspect: keepsAspect(obj), onLongPress: (x, y) => ed.openMenu(obj.id, x, y), onTap: handle || onGrip ? undefined : tap,
     });
   }
 
@@ -187,7 +186,7 @@
 </div>
 
 <style>
-  .obox { position: absolute; pointer-events: auto; cursor: move; touch-action: none; }
+  .obox { position: absolute; pointer-events: auto; cursor: move; touch-action: none; -webkit-touch-callout: none; }
   .obox.image, .obox.symbol { outline: 1px dashed transparent; }
   .obox:hover { outline: 1px dashed #2457d6; }
   .obox.selected { outline: 1.5px solid #2457d6; }

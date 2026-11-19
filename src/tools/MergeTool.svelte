@@ -7,7 +7,7 @@
   import { Thumbs, formatSize, thumb } from './thumbs';
   import { moveItem, sortable } from './sortable';
   import { openError, readPdfFiles, sendToTool, takeFiles, type OutFile, type ToolFile } from './handoff';
-  import { requestOpen } from '../editor/session';
+  import { bigFileNote, requestOpen } from '../editor/session';
   import { allPages, baseName } from '../pdf/plan';
   import ArrowUp from '@lucide/svelte/icons/arrow-up';
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
@@ -28,6 +28,7 @@
   onDestroy(() => { thumbs.destroy(); });
 
   const totalPages = $derived(entries.reduce((n, e) => n + e.pages, 0));
+  const big = $derived(bigFileNote(entries.reduce((n, e) => n + e.bytes.length, 0)));
 
   // PDFs compartilhados de outro app chegam prontos
   onMount(() => { const files = takeFiles('juntar'); if (files.length) addPdfs(files); });
@@ -116,6 +117,7 @@
       </div>
     {/if}
   {/if}
+  {#if big && !result}<p class="notice warn">{big}</p>{/if}
   {#if busy}<p class="notice info" role="status"><Loader size={18} class="spin" aria-hidden="true" /> {busy}</p>{/if}
   {#if error}<p class="notice err" role="alert">{error}</p>{/if}
 </ToolPage>

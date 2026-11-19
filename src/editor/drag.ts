@@ -17,9 +17,36 @@ export interface DragOptions {
   minH: number;
   aspect?: boolean;         // cantos mantêm a proporção
   onTap?: (ev: PointerEvent) => void;
+  onLongPress?: (x: number, y: number) => void;  // dedo ou caneta parado: menu do objeto
 }
 
-export function startDrag(e: PointerEvent, { ed, obj, scale: s, mode, minW, minH, aspect, onTap }: DragOptions) {
+export const LONG_PRESS_MS = 500;
+
+/**
+ * Toque longo (dedo ou caneta, sem mexer): chama `onLong`. Com o mouse não vale (há o clique direito,
+ * e segurar o botão antes de arrastar não pode abrir menu).
+ */
+export function watchLongPress(e: PointerEvent, onLong: (x: number, y: number) => void) {
+  const none = { fired: () => false, cancel: () => {} };
+  if (e.pointerType === 'mouse') return none;
+  const el = e.target as HTMLElement;
+  const x0 = e.clientX, y0 = e.clientY;
+  let fired = false;
+  const cancel = () => {
+    clearTimeout(timer);
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', cancel);
+    el.removeEventListener('pointercancel', cancel);
+  };
+  const onMove = (ev: PointerEvent) => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 10) cancel(); };
+  const timer = setTimeout(() => { fired = true; cancel(); onLong(x0, y0); }, LONG_PRESS_MS);
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', cancel);
+  el.addEventListener('pointercancel', cancel);
+  return { fired: () => fired, cancel };
+}
+
+export function startDrag(e: PointerEvent, { ed, obj, scale: s, mode, minW, minH, aspect, onTap, onLongPress }: DragOptions) {
   const geo = ed.geo(obj.page);
   const [pw, ph] = viewSize(geo);
   // Conteúdo deitado na tela: a largura mínima dele vira altura mínima da caixa
@@ -30,12 +57,15 @@ export function startDrag(e: PointerEvent, { ed, obj, scale: s, mode, minW, minH
   const el = e.target as HTMLElement;
   let moved = false;
   el.setPointerCapture?.(e.pointerId);
+  const press = onLongPress && mode === 'move' ? watchLongPress(e, onLongPress) : null;
 
   const set = (x: number, y: number, w: number, h: number) => { obj.rect = fromView({ x, y, w, h }, geo); };
 
   const onMove = (ev: PointerEvent) => {
+    if (press?.fired()) return; // o menu abriu: o objeto fica parado
     if (!moved && Math.hypot(ev.clientX - cx, ev.clientY - cy) < 4) return;
     moved = true;
+    press?.cancel();
     const dx = (ev.clientX - cx) / s, dy = (ev.clientY - cy) / s; // pt; dy > 0 = para baixo
     if (mode === 'move') {
       set(clamp(start.x + dx, 0, pw - start.w), clamp(start.y + dy, 0, ph - start.h), start.w, start.h);
@@ -67,8 +97,9 @@ export function startDrag(e: PointerEvent, { ed, obj, scale: s, mode, minW, minH
     el.removeEventListener('pointermove', onMove);
     el.removeEventListener('pointerup', onUp);
     el.removeEventListener('pointercancel', onUp);
+    press?.cancel();
     if (moved) ed.commit();
-    else if (ev.type === 'pointerup') onTap?.(ev);
+    else if (ev.type === 'pointerup' && !press?.fired()) onTap?.(ev);
   };
   el.addEventListener('pointermove', onMove);
   el.addEventListener('pointerup', onUp);

@@ -18,6 +18,7 @@ import { extractProject, projectFor, stampObjects, type StampInput } from '../pd
 import { baselineFactor, cssFont, fontsReady, measureLines } from './measure';
 import { deleteDraft, getDraft, saveDraft, sha256 } from '../storage/drafts';
 import type { PageSpec } from '../pdf/plan';
+import { bigFileNote } from './session';
 
 export type Tool = 'select' | 'text' | 'stamp' | 'field' | 'markup' | 'ink' | 'shape' | 'note';
 /** Ferramentas que desenham arrastando: no celular, um dedo desenha e dois dedos rolam. */
@@ -100,6 +101,10 @@ export class EditorState {
   }
 
   // ================= abrir =================
+  /** Menu do objeto selecionado (toque longo, clique direito ou tecla de menu), na posição da tela. */
+  menu = $state<{ x: number; y: number } | null>(null);
+  openMenu(id: string, x: number, y: number) { this.select(id); this.editingId = null; this.menu = { x, y }; }
+
   async openBytes(bytes: Uint8Array, name: string) {
     this.loading = true;
     this.status = null;
@@ -119,6 +124,9 @@ export class EditorState {
       } else {
         await this.#load(bytes, name, hash, [], {});
       }
+      const big = bigFileNote(bytes.length);
+      const shown = this.status as EditorState['status'];
+      if (big && this.doc && (!shown || shown.kind === 'info')) this.status = { kind: 'warn', text: big };
     } catch (err) {
       console.error(err);
       const e = err as { name?: string };
@@ -514,6 +522,15 @@ export class EditorState {
     const src = this.objects.find((o) => o.id === id);
     if (!src || isFixed(src)) return; // marcações ficam presas ao texto
     this.#paste(src);
+  }
+
+  /** Traz para a frente (desenhado por último) ou manda para trás. */
+  reorder(where: 'front' | 'back', id = this.selectedId) {
+    const i = this.objects.findIndex((o) => o.id === id);
+    if (i < 0) return;
+    const [o] = this.objects.splice(i, 1);
+    if (where === 'front') this.objects.push(o); else this.objects.unshift(o);
+    this.commit();
   }
 
   copy() { const s = this.selected; if (s && !isFixed(s)) this.#clipboard = cloneObj($state.snapshot(s) as Obj); }

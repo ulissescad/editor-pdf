@@ -18,7 +18,7 @@
   import Result from './Result.svelte';
   import { formatSize } from './thumbs';
   import { readPdfFiles, sendToTool, takeFiles, type ToolFile } from './handoff';
-  import { requestOpen } from '../editor/session';
+  import { bigFileNote, requestOpen } from '../editor/session';
   import { closePdf, openPdf } from '../pdf/pdfjs';
   import { baseName } from '../pdf/plan';
   import Loader from '@lucide/svelte/icons/loader-circle';
@@ -45,6 +45,7 @@
   let busy = $state('');
   let error = $state('');
   let locked = $state<ToolFile | null>(null);
+  let big = $state<string | null>(null);
   let result = $state<RunResult | null>(null);
 
   onMount(() => {
@@ -89,6 +90,7 @@
         throw err;
       }
       file = picked;
+      big = bigFileNote(f.bytes.length);
     } catch (err) {
       console.error(err);
       error = `Não foi possível abrir “${f.name}”. Verifique se é um PDF válido.`;
@@ -117,6 +119,7 @@
     const doc = file?.doc;
     file = null;
     result = null;
+    big = null;
     onclear?.();
     await closePdf(doc);
   }
@@ -166,6 +169,7 @@
 </ToolPage>
 
 {#snippet notices()}
+  {#if big && !result}<p class="notice warn">{big}</p>{/if}
   {#if busy}<p class="notice info" role="status"><Loader size={18} class="spin" aria-hidden="true" /> {busy}</p>{/if}
   {#if error}<p class="notice err" role="alert">{error}</p>{/if}
 {/snippet}

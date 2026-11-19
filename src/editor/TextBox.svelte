@@ -3,6 +3,7 @@
   import { FONTS, LINE, PAD, isItalic, minHeight, type TextObj } from './model';
   import { localSize } from './geom';
   import { HANDLES, startDrag } from './drag';
+  import { keepAboveKeyboard } from './keyboard';
   import type { EditorState } from './state.svelte';
 
   let { obj, ed }: { obj: TextObj; ed: EditorState } = $props();
@@ -42,11 +43,9 @@
     if (!editing || !content || document.activeElement === content) return;
     content.focus({ preventScroll: true });
     placeCaret();
-    if (matchMedia('(pointer: coarse)').matches) {
-      // Espera o teclado virtual abrir e centraliza a caixa na área visível
-      setTimeout(() => content?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 350);
-    }
   });
+  // Teclado virtual aberto: a caixa fica acima dele
+  $effect(() => (editing && content ? keepAboveKeyboard(content) : undefined));
 
   function placeCaret() {
     const sel = window.getSelection();
@@ -116,6 +115,7 @@
     startDrag(e, {
       ed, obj, scale: geo.scale, mode: handle ?? 'move',
       minW: Math.max(12, obj.style.size), minH: minHeight(obj.style),
+      onLongPress: (x, y) => ed.openMenu(obj.id, x, y),
       onTap: !handle && !onGrip ? (ev) => { caret = { x: ev.clientX, y: ev.clientY }; ed.startEditing(obj.id); } : undefined,
     });
   }
@@ -173,7 +173,7 @@
 
 <style>
   .tbox {
-    position: absolute; pointer-events: auto; cursor: move; touch-action: none;
+    position: absolute; pointer-events: auto; cursor: move; touch-action: none; -webkit-touch-callout: none;
     outline: 1px dashed rgba(36, 87, 214, .5);
   }
   .tbox:hover { outline-color: #2457d6; }

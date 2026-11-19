@@ -1,7 +1,8 @@
 # Editor de PDF
 
 Preencha, assine, anote e organize PDFs **direto no navegador**. Sem servidor, sem IA e sem nenhuma requisição a terceiros:
-os arquivos nunca saem do aparelho de quem usa. Funciona offline e pode ser instalado no celular (PWA).
+os arquivos nunca saem do aparelho de quem usa. Funciona offline, pode ser instalado no celular (PWA) e é gratuito,
+sem custo para quem usa nem para quem mantém.
 
 O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
 
@@ -53,15 +54,14 @@ O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
 
 ## Publicar no GitHub Pages
 
-1. Crie um repositório no GitHub e envie este projeto para a branch `main`.
+1. Crie um repositório **público** no GitHub e envie este projeto para a branch `main`.
 2. No repositório: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 3. Cada push na `main` roda os testes e, se passarem, publica em `https://<usuário>.github.io/<repositório>/`.
    O caminho base é detectado automaticamente pelo nome do repositório.
-4. **Domínio próprio (opcional):** configure o domínio em Settings → Pages e crie a variável de repositório
-   `BASE_PATH` com o valor `/` (Settings → Secrets and variables → Actions → Variables).
 
-> O site publicado é público mesmo que o repositório seja privado (Pages em repositório privado exige plano pago).
-> Nenhum dado de usuário passa pelo GitHub: todo o processamento acontece no navegador.
+> **Custo zero:** o repositório deve ser **público**. Assim o GitHub Pages, o GitHub Actions e o Dependabot são
+> gratuitos (em repositório privado, o Pages exige plano pago). O site não usa domínio próprio, servidor nem nenhum
+> serviço pago, e nenhum dado de usuário passa pelo GitHub: todo o processamento acontece no navegador.
 
 ## Desenvolvimento
 

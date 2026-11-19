@@ -365,3 +365,28 @@ describe('arquivos recebidos de outros apps', () => {
     expect(hrefFor({ name: 'received' })).toBe('#/recebido');
   });
 });
+
+// ---------------------------------------------------------------- celular: teclado e arquivos grandes
+
+import { scrollToFit } from '../../src/editor/keyboard.ts';
+import { BIG_FILE, bigFileNote } from '../../src/editor/session.ts';
+
+describe('teclado virtual', () => {
+  it('rola só o necessário para a caixa ficar acima do teclado', () => {
+    expect(scrollToFit(100, 140, 0, 400)).toBe(0);            // já visível
+    expect(scrollToFit(500, 540, 0, 400)).toBe(540 - 388);    // atrás do teclado: sobe até a margem
+    expect(scrollToFit(-30, 10, 0, 400)).toBe(-42);           // acima da área: desce
+  });
+
+  it('caixa maior que a área visível mostra o começo', () => {
+    expect(scrollToFit(300, 900, 0, 400)).toBe(288);
+  });
+});
+
+describe('aviso de arquivo grande', () => {
+  it('só no celular e só acima de 50 MB', () => {
+    expect(bigFileNote(BIG_FILE - 1, true)).toBeNull();
+    expect(bigFileNote(BIG_FILE * 2, false)).toBeNull();
+    expect(bigFileNote(BIG_FILE * 2, true)).toContain('100 MB');
+  });
+});

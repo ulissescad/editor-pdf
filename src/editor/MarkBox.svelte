@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { watchLongPress } from './drag';
   import type { MarkupObj } from './model';
   import { HIGHLIGHT_OPACITY, MARKUP_NAMES, markupRects } from './draw';
   import { toView, type VRect } from './geom';
@@ -29,6 +30,7 @@
     e.preventDefault();
     e.stopPropagation();
     ed.select(obj.id);
+    watchLongPress(e, (x, y) => ed.openMenu(obj.id, x, y));
   }
 </script>
 
@@ -50,5 +52,5 @@
   .mbox { position: absolute; pointer-events: none; }
   .mbox.selected { outline: 1.5px dashed #2457d6; outline-offset: 2px; }
   .paint, .hit { position: absolute; }
-  .hit { pointer-events: auto; cursor: pointer; }
+  .hit { pointer-events: auto; cursor: pointer; -webkit-touch-callout: none; }
 </style>

@@ -12,6 +12,7 @@
   import TextBox from './TextBox.svelte';
   import ObjBox from './ObjBox.svelte';
   import MarkBox from './MarkBox.svelte';
+  import ObjMenu from './ObjMenu.svelte';
   import SketchPreview from './SketchPreview.svelte';
   import SignatureDialog from './SignatureDialog.svelte';
   import PropsPanel from './PropsPanel.svelte';
@@ -126,6 +127,14 @@
   // Texto e Campos: toque/clique cria no tamanho padrão; arrastar (com mouse/caneta) desenha o tamanho.
   // Símbolos e Nota: cada toque coloca um.
   // Destacar, Caneta e Formas: arrastar desenha (sketch.ts); no celular, um dedo desenha e dois rolam.
+  // Clique direito (e o toque longo nativo do Android) num objeto abre o menu dele
+  function onContextMenu(e: MouseEvent) {
+    const box = (e.target as HTMLElement).closest<HTMLElement>('.tbox, .obox, .mbox');
+    if (!box?.dataset.id || ed.editingId === box.dataset.id) return; // editando: menu do navegador (colar…)
+    e.preventDefault();
+    ed.openMenu(box.dataset.id, e.clientX, e.clientY);
+  }
+
   function onContainerPointerDown(e: PointerEvent) {
     const target = e.target as HTMLElement;
     if (e.button !== 0 || (!drawing && target.closest('.tbox, .obox, .mbox'))) return;
@@ -248,6 +257,12 @@
     if (mod && k === 'v') { e.preventDefault(); ed.paste(); return; }
     if (mod && k === 'd') { e.preventDefault(); ed.duplicate(); return; }
     if (!ed.selected) { if (e.key === 'Escape' && ed.tool !== 'select') setTool('select'); return; }
+    if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+      e.preventDefault();
+      const r = document.querySelector(`[data-id="${ed.selected.id}"]`)?.getBoundingClientRect();
+      if (r) ed.openMenu(ed.selected.id, r.left + Math.min(r.width / 2, 40), r.top + Math.min(r.height, 40));
+      return;
+    }
     const step = e.shiftKey ? 10 : 1;
     const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); ed.remove(); }
@@ -289,6 +304,7 @@
 </script>
 
 <svelte:window onkeydown={onKeydown} />
+{#if ed.menu && ed.selected}{#key ed.menu}<ObjMenu {ed} x={ed.menu.x} y={ed.menu.y} />{/key}{/if}
 <svelte:document onvisibilitychange={onVisibility} />
 
 <div class="editor" class:text-mode={ed.tool !== 'select'} class:drawing
@@ -397,7 +413,7 @@
       <!-- O pdf.js exige um container com posição absoluta. O pointerdown aqui cria caixas de texto
            sobre a página (área de desenho); os campos e as caixas têm seus próprios controles acessíveis. -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="viewer-container" bind:this={container} onpointerdown={onContainerPointerDown} hidden={!ed.hasDoc}>
+      <div class="viewer-container" bind:this={container} onpointerdown={onContainerPointerDown} oncontextmenu={onContextMenu} onscroll={() => (ed.menu = null)} hidden={!ed.hasDoc}>
         <div class="pdfViewer" bind:this={viewerDiv}></div>
         <!-- Marca-texto e destaques multiplicam com a página, como no PDF (camada com mix-blend-mode) -->
         <div class="mark-layer">

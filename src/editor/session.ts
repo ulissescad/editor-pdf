@@ -16,6 +16,18 @@ export function takePending(): PendingOpen | null {
   return p;
 }
 
+/** Acima disso, no celular, a aba pode ficar lenta ou ser recarregada pelo sistema (PLANO.md, seção 4). */
+export const BIG_FILE = 50 * 1024 * 1024;
+
+const isTouch = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+
+/** Aviso para arquivos grandes no celular (no computador não há aviso). */
+export function bigFileNote(size: number, touch = isTouch()): string | null {
+  if (size < BIG_FILE || !touch) return null;
+  const mb = Math.round(size / (1024 * 1024));
+  return `Arquivo grande (${mb} MB): neste aparelho ele pode ficar lento ou fazer a página recarregar. Se acontecer, use um computador.`;
+}
+
 export const isPdfFile = (f: File) => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name);
 
 /** Reconhece um PDF pelo conteúdo (“%PDF-” no início), para arquivos sem extensão ou sem tipo. */
