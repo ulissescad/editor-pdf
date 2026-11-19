@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   // Destino do “Compartilhar” do celular: pega o arquivo guardado pelo service worker e abre no lugar certo.
   import { onMount } from 'svelte';
   import { deliver, takeShared } from '../lib/incoming';
@@ -18,11 +19,11 @@
 
 <section class="wrap box">
   {#if failed}
-    <h1>Nenhum arquivo para abrir</h1>
-    <p>Compartilhe um PDF ou uma imagem com o Editor de PDF, ou escolha o arquivo na página inicial.</p>
-    <a class="button primary" href="#/">Ir para o início</a>
+    <h1>{t('Nenhum arquivo para abrir')}</h1>
+    <p>{t('Compartilhe um PDF ou uma imagem com o Editor de PDF, ou escolha o arquivo na página inicial.')}</p>
+    <a class="button primary" href="#/">{t('Ir para o início')}</a>
   {:else}
-    <p class="notice info" role="status"><Loader size={18} class="spin" aria-hidden="true" /> Abrindo o arquivo recebido…</p>
+    <p class="notice info" role="status"><Loader size={18} class="spin" aria-hidden="true" /> {t('Abrindo o arquivo recebido…')}</p>
   {/if}
 </section>
 

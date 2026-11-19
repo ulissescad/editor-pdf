@@ -1,6 +1,7 @@
 // Modelo de objetos do editor (PLANO.md, seção 3).
 // Posições e tamanhos ficam em pontos do PDF (origem no canto inferior esquerdo da página);
 // x/y é o canto superior esquerdo do objeto. Assim o zoom e o aparelho não alteram nada.
+import { fmtDate, tk } from '../lib/i18n.svelte';
 
 export const PAD = 2;     // margem interna das caixas de texto, em pt
 export const LINE = 1.2;  // altura de linha em múltiplos do tamanho da fonte
@@ -25,18 +26,18 @@ export interface FontDef {
  * Fontes extras: o próprio arquivo da fonte vai embutido no PDF (só os caracteres usados).
  */
 export const FONTS: Record<FontId, FontDef> = {
-  sans:   { label: 'Arial / Helvetica', css: 'Arimo, Arial, Helvetica, sans-serif', italic: true,
+  sans:   { label: tk('Arial / Helvetica'), css: 'Arimo, Arial, Helvetica, sans-serif', italic: true,
             pdf: ['Helvetica', 'HelveticaBold', 'HelveticaOblique', 'HelveticaBoldOblique'] },
-  serif:  { label: 'Times New Roman', css: 'Tinos, "Times New Roman", Times, serif', italic: true,
+  serif:  { label: tk('Times New Roman'), css: 'Tinos, "Times New Roman", Times, serif', italic: true,
             pdf: ['TimesRoman', 'TimesRomanBold', 'TimesRomanItalic', 'TimesRomanBoldItalic'] },
-  mono:   { label: 'Courier New', css: 'Cousine, "Courier New", Courier, monospace', italic: true,
+  mono:   { label: tk('Courier New'), css: 'Cousine, "Courier New", Courier, monospace', italic: true,
             pdf: ['Courier', 'CourierBold', 'CourierOblique', 'CourierBoldOblique'] },
-  modern: { label: 'Open Sans (moderna)', css: '"Open Sans", sans-serif', italic: true,
+  modern: { label: tk('Open Sans (moderna)'), css: '"Open Sans", sans-serif', italic: true,
             files: ['open-sans/files/open-sans-latin-400-normal.woff', 'open-sans/files/open-sans-latin-700-normal.woff',
                     'open-sans/files/open-sans-latin-400-italic.woff', 'open-sans/files/open-sans-latin-700-italic.woff'] },
-  hand:   { label: 'Caveat (manuscrita)', css: 'Caveat, cursive', italic: false,
+  hand:   { label: tk('Caveat (manuscrita)'), css: 'Caveat, cursive', italic: false,
             files: ['caveat/files/caveat-latin-400-normal.woff', 'caveat/files/caveat-latin-700-normal.woff', null, null] },
-  script: { label: 'Dancing Script (cursiva)', css: '"Dancing Script", cursive', italic: false,
+  script: { label: tk('Dancing Script (cursiva)'), css: '"Dancing Script", cursive', italic: false,
             files: ['dancing-script/files/dancing-script-latin-400-normal.woff', 'dancing-script/files/dancing-script-latin-700-normal.woff', null, null] },
 };
 
@@ -335,5 +336,5 @@ export function fromBase64(data: string): Uint8Array {
 }
 
 /** Hoje no formato brasileiro (dd/mm/aaaa). */
-export const today = (d = new Date()) =>
-  `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+/** Data de hoje no formato do idioma do site (05/01/2026 em português, 01/05/2026 em inglês…). */
+export const today = (d = new Date()) => fmtDate(d, { day: '2-digit', month: '2-digit', year: 'numeric' });

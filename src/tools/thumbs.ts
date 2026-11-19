@@ -2,6 +2,7 @@
 // Cada arquivo de origem é aberto uma vez; as páginas são desenhadas só quando aparecem na tela.
 import { closePdf, openPdf, type PDFDocumentProxy } from '../pdf/pdfjs';
 import { normRot } from '../editor/geom';
+import { fmtNumber } from '../lib/i18n.svelte';
 
 export class Thumbs {
   private docs: Array<{ doc: PDFDocumentProxy; owned: boolean }> = [];
@@ -85,6 +86,6 @@ export function thumb(canvas: HTMLCanvasElement, p: { thumbs: Thumbs; src: numbe
 
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
+  if (bytes < 1024 * 1024) return `${fmtNumber(Math.round(bytes / 1024))} KB`;
+  return `${fmtNumber(bytes / 1024 / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`;
 }

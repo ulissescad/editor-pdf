@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   import { FONTS, LINE, keepsAspect, type FieldObj, type ImageObj, type InkObj, type NoteObj, type ShapeObj, type SymbolObj } from './model';
   import { SYMBOL_DEFS } from './symbols';
   import { NOTE_ICON, SHAPE_LABELS, inkPath, shapeGeometry } from './draw';
@@ -35,12 +36,12 @@
   // num campo baixo e largo ela cobriria o campo vizinho
   const small = $derived(geo.width < 32 && geo.height < 32);
   const label = $derived(
-    obj.kind === 'image' ? (obj.signature ? 'Assinatura' : 'Imagem')
-      : obj.kind === 'symbol' ? `Símbolo ${SYMBOL_DEFS[obj.symbol].label.toLowerCase()}`
-      : obj.kind === 'ink' ? (obj.opacity !== undefined ? 'Marca-texto' : 'Desenho à mão')
-      : obj.kind === 'shape' ? SHAPE_LABELS[obj.shape]
-      : obj.kind === 'note' ? `Nota${obj.text ? `: ${obj.text}` : ''}`
-      : `Campo ${obj.name}`,
+    obj.kind === 'image' ? (obj.signature ? t('Assinatura') : t('Imagem'))
+      : obj.kind === 'symbol' ? t('Símbolo {name}', { name: t(SYMBOL_DEFS[obj.symbol].label).toLowerCase() })
+      : obj.kind === 'ink' ? (obj.opacity !== undefined ? t('Marca-texto') : t('Desenho à mão'))
+      : obj.kind === 'shape' ? t(SHAPE_LABELS[obj.shape])
+      : obj.kind === 'note' ? `${t('Nota')}${obj.text ? `: ${obj.text}` : ''}`
+      : t('Campo {name}', { name: obj.name }),
   );
 
   // Entrar na edição de um campo de texto: foco + teclado virtual
@@ -120,7 +121,7 @@
   aria-label={label}
 >
   {#if selected && obj.kind !== 'note'}
-    <div class="grip" title="Arraste para mover" aria-hidden="true">✥ {obj.kind === 'field' ? obj.name : 'mover'}</div>
+    <div class="grip" title={t('Arraste para mover')} aria-hidden="true">✥ {obj.kind === 'field' ? obj.name : t('mover')}</div>
   {/if}
 
   <div class="inner" class:turned={geo.turn !== 0}
@@ -161,12 +162,12 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d={SYMBOL_DEFS.check.path} fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" /></svg>
     {/if}
   {:else if obj.multiline}
-    <textarea bind:this={input} class="fvalue" value={obj.value} aria-label="Valor de {obj.name}" tabindex="-1" spellcheck="true"
+    <textarea bind:this={input} class="fvalue" value={obj.value} aria-label={t('Valor de {name}', { name: obj.name })} tabindex="-1" spellcheck="true"
       style:font-family={FONTS.sans.css} style:font-size="{obj.size * geo.scale}px" style:line-height={LINE}
       style:padding="{2 * geo.scale}px"
       oninput={onInput} onblur={() => ed.editingId === obj.id && ed.stopEditing()} onkeydown={onKeydown}></textarea>
   {:else}
-    <input bind:this={input} class="fvalue" value={obj.value} aria-label="Valor de {obj.name}" tabindex="-1" spellcheck="true"
+    <input bind:this={input} class="fvalue" value={obj.value} aria-label={t('Valor de {name}', { name: obj.name })} tabindex="-1" spellcheck="true"
       style:font-family={FONTS.sans.css} style:font-size="{obj.size * geo.scale}px" style:padding="0 {2 * geo.scale}px"
       oninput={onInput} onblur={() => ed.editingId === obj.id && ed.stopEditing()} onkeydown={onKeydown}>
   {/if}
@@ -178,9 +179,9 @@
 
   {#if obj.kind === 'note' && editing}
     <div class="note-pop" class:left={popLeft} style:--c={obj.color}>
-      <textarea bind:this={input} value={obj.text} placeholder="Escreva o comentário" aria-label="Texto da nota" rows="4"
+      <textarea bind:this={input} value={obj.text} placeholder={t('Escreva o comentário')} aria-label={t('Texto da nota')} rows="4"
         oninput={onInput} onblur={() => ed.editingId === obj.id && ed.stopEditing()} onkeydown={onKeydown}></textarea>
-      <small>O comentário vai para o PDF como nota: aparece ao tocar no ícone.</small>
+      <small>{t('O comentário vai para o PDF como nota: aparece ao tocar no ícone.')}</small>
     </div>
   {/if}
 </div>

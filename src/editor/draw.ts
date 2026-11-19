@@ -3,6 +3,7 @@
 // Os caminhos usam só M, L, C e Z, no quadro do conteúdo (pt, origem no canto superior esquerdo, y para baixo).
 import type { InkObj, MarkupObj, MarkupType, Obj, Rect, ShapeObj, ShapeType } from './model';
 import { contentMatrix, localSize } from './geom';
+import { tk } from '../lib/i18n.svelte';
 
 // ---------------- paletas e padrões ----------------
 /** Cores de destaque (aplicadas com multiplicação e 50% de opacidade, como um marca-texto). */
@@ -13,16 +14,16 @@ export const STROKE_COLORS = ['#000000', '#1a3cc8', '#c62828', '#2e7d32'];
 export const NOTE_COLORS = ['#ffd84d', '#7fd6ff', '#9be27a', '#ff9ec7'];
 
 export const MARKUP_DEFAULTS: Record<MarkupType, string> = { highlight: '#ffe500', underline: '#1a3cc8', strike: '#c62828' };
-export const MARKUP_LABELS: Record<MarkupType, string> = { highlight: 'Destacar', underline: 'Sublinhar', strike: 'Riscar' };
-export const MARKUP_NAMES: Record<MarkupType, string> = { highlight: 'Destaque', underline: 'Sublinhado', strike: 'Riscado' };
+export const MARKUP_LABELS: Record<MarkupType, string> = { highlight: tk('Destacar'), underline: tk('Sublinhar'), strike: tk('Riscar') };
+export const MARKUP_NAMES: Record<MarkupType, string> = { highlight: tk('Destaque'), underline: tk('Sublinhado'), strike: tk('Riscado') };
 
-export const INK_WIDTHS = [{ label: 'Fina', value: 1 }, { label: 'Média', value: 2.5 }, { label: 'Grossa', value: 5 }];
+export const INK_WIDTHS = [{ label: tk('Fina'), value: 1 }, { label: tk('Média'), value: 2.5 }, { label: tk('Grossa'), value: 5 }];
 /** Caneta marca-texto: traço largo e translúcido. */
 export const MARKER = { width: 12, opacity: 0.45, color: '#ffe500' };
 
-export const SHAPE_WIDTHS = [{ label: 'Fina', value: 1 }, { label: 'Média', value: 2 }, { label: 'Grossa', value: 4 }];
+export const SHAPE_WIDTHS = [{ label: tk('Fina'), value: 1 }, { label: tk('Média'), value: 2 }, { label: tk('Grossa'), value: 4 }];
 export const SHAPE_LABELS: Record<ShapeType, string> = {
-  rect: 'Retângulo', ellipse: 'Elipse', line: 'Linha', arrow: 'Seta', whiteout: 'Corretivo',
+  rect: tk('Retângulo'), ellipse: tk('Elipse'), line: tk('Linha'), arrow: tk('Seta'), whiteout: tk('Corretivo'),
 };
 export const WHITEOUT = '#ffffff';
 /** Tipos que podem ser trocados entre si num objeto já criado (a geometria é compatível). */

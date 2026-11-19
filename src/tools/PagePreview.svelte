@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   // Prévia de uma página: desenha a página `index` de `doc` (pdf.js) ou a primeira página de `bytes`.
   // `overlay` fica por cima, no mesmo tamanho da página (ex.: a área do recorte).
   import type { Snippet } from 'svelte';
@@ -6,7 +7,7 @@
   import Loader from '@lucide/svelte/icons/loader-circle';
 
   let {
-    doc = null, bytes = null, index = 0, width = 320, maxVh = 0, label = 'Prévia', overlay,
+    doc = null, bytes = null, index = 0, width = 320, maxVh = 0, label = t('Prévia'), overlay,
   }: {
     doc?: PDFDocumentProxy | null; bytes?: Uint8Array | null; index?: number; width?: number; label?: string;
     /** Altura máxima em % da tela (a página inteira cabe na tela, sem rolar). 0 = sem limite. */

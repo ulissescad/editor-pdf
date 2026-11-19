@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tn, tPdf } from '../lib/i18n.svelte';
   // Marca d’água (PLANO.md, item 2.8): texto ou imagem, com opacidade, na diagonal ou em mosaico.
   // A prévia é o resultado de verdade (a página com a marca, desenhada pelo pdf.js).
   import type { PDFDocument } from '@cantoo/pdf-lib';
@@ -12,7 +13,7 @@
   import { WATERMARK_DEFAULTS, type WatermarkOptions } from '../pdf/stamp';
   import Droplets from '@lucide/svelte/icons/droplets';
 
-  const o = $state<WatermarkOptions>({ ...WATERMARK_DEFAULTS });
+  const o = $state<WatermarkOptions>({ ...WATERMARK_DEFAULTS, text: tPdf(WATERMARK_DEFAULTS.text) });
   let selection = $state<number[] | null>(null);
   let imageName = $state('');
   let imageError = $state('');
@@ -54,91 +55,91 @@
       o.image = { bytes: a.bytes, mime: a.mime, w: a.w, h: a.h };
       imageName = files[0].name;
     } catch {
-      imageError = 'Não foi possível abrir esta imagem. Use JPG ou PNG.';
+      imageError = t('Não foi possível abrir esta imagem. Use JPG ou PNG.');
     }
   }
 
   async function run(f: Picked, progress: Progress): Promise<RunResult> {
-    if (selection && !selection.length) throw new ToolError('Escolha as páginas que recebem a marca d’água.');
-    progress('Aplicando a marca d’água…');
+    if (selection && !selection.length) throw new ToolError(t('Escolha as páginas que recebem a marca d’água.'));
+    progress(t('Aplicando a marca d’água…'));
     const [{ loadPdf }, { addWatermark }] = await Promise.all([import('../pdf/pages'), import('../pdf/stamp')]);
     const doc = await loadPdf(f.bytes);
     const { replaced } = await addWatermark(doc, $state.snapshot(o) as WatermarkOptions, selection);
     const bytes = await doc.save({ useObjectStreams: true, updateFieldAppearances: false });
     const n = selection?.length ?? f.pages;
     return {
-      files: [{ name: `${baseName(f.name)}-marca-dagua.pdf`, bytes, mime: 'application/pdf' }],
-      summary: `Marca d’água aplicada em ${n} página${n === 1 ? '' : 's'}.`,
-      note: replaced ? `${replaced} caractere(s) não existem na fonte do PDF e saíram como “?”.` : undefined,
+      files: [{ name: `${baseName(f.name)}-${t('marca-dagua')}.pdf`, bytes, mime: 'application/pdf' }],
+      summary: tn(n, 'Marca d’água aplicada em {n} página.', 'Marca d’água aplicada em {n} páginas.'),
+      note: replaced ? tn(replaced, '{n} caractere não existe na fonte do PDF e saiu como “?”.', '{n} caracteres não existem na fonte do PDF e saíram como “?”.') : undefined,
     };
   }
 
   function clear() { src = null; preview = null; }
 </script>
 
-<OneFileTool id="marca-dagua" action="Aplicar marca d’água" icon={Droplets} {run} canRun={ready} onpick={pick} onclear={clear} wide>
+<OneFileTool id="marca-dagua" action={t('Aplicar marca d’água')} icon={Droplets} {run} canRun={ready} onpick={pick} onclear={clear} wide>
   {#snippet options(f)}
     <div class="row">
-      <span class="label" id="wk-l">Tipo</span>
+      <span class="label" id="wk-l">{t('Tipo')}</span>
       <fieldset class="seg" aria-labelledby="wk-l">
-        <label><input type="radio" bind:group={o.kind} value="text"> Texto</label>
-        <label><input type="radio" bind:group={o.kind} value="image"> Imagem</label>
+        <label><input type="radio" bind:group={o.kind} value="text"> {t('Texto')}</label>
+        <label><input type="radio" bind:group={o.kind} value="image"> {t('Imagem')}</label>
       </fieldset>
     </div>
     {#if o.kind === 'text'}
       <div class="row">
-        <label class="label" for="wm-text">Texto</label>
+        <label class="label" for="wm-text">{t('Texto')}</label>
         <input id="wm-text" type="text" bind:value={o.text} maxlength="80">
       </div>
       <div class="inline">
-        <label class="color">Cor <input type="color" bind:value={o.color}></label>
-        <label class="check"><input type="checkbox" bind:checked={o.bold}> Negrito</label>
+        <label class="color">{t('Cor')} <input type="color" bind:value={o.color}></label>
+        <label class="check"><input type="checkbox" bind:checked={o.bold}> {t('Negrito')}</label>
       </div>
       <div class="row">
-        <span class="label" id="wd-l">Direção</span>
+        <span class="label" id="wd-l">{t('Direção')}</span>
         <fieldset class="seg" aria-labelledby="wd-l">
-          <label><input type="radio" bind:group={o.diagonal} value={true}> Diagonal</label>
-          <label><input type="radio" bind:group={o.diagonal} value={false}> Horizontal</label>
+          <label><input type="radio" bind:group={o.diagonal} value={true}> {t('Diagonal')}</label>
+          <label><input type="radio" bind:group={o.diagonal} value={false}> {t('Horizontal')}</label>
         </fieldset>
       </div>
     {:else}
       <div class="row">
-        <span class="label">Imagem</span>
-        <FileDrop label={imageName ? 'Trocar imagem' : 'Escolher imagem'} accept="image/png,image/jpeg,image/webp" compact onfiles={chooseImage} />
+        <span class="label">{t('Imagem')}</span>
+        <FileDrop label={imageName ? t('Trocar imagem') : t('Escolher imagem')} accept="image/png,image/jpeg,image/webp" compact onfiles={chooseImage} />
         {#if imageName}<p class="hint">{imageName}</p>{/if}
         {#if imageError}<p class="notice err">{imageError}</p>{/if}
       </div>
     {/if}
     <div class="row">
-      <span class="label" id="wl-l">Posição</span>
+      <span class="label" id="wl-l">{t('Posição')}</span>
       <fieldset class="seg" aria-labelledby="wl-l">
-        <label><input type="radio" bind:group={o.tile} value={false}> Uma no centro</label>
-        <label><input type="radio" bind:group={o.tile} value={true}> Mosaico</label>
+        <label><input type="radio" bind:group={o.tile} value={false}> {t('Uma no centro')}</label>
+        <label><input type="radio" bind:group={o.tile} value={true}> {t('Mosaico')}</label>
       </fieldset>
     </div>
     <div class="row">
-      <label class="label" for="wm-size">Tamanho · {Math.round(o.scale * 100)}%</label>
+      <label class="label" for="wm-size">{t('Tamanho')} · {Math.round(o.scale * 100)}%</label>
       <input id="wm-size" type="range" min="0.2" max="1" step="0.05" bind:value={o.scale}>
     </div>
     <div class="row">
-      <label class="label" for="wm-op">Opacidade · {Math.round(o.opacity * 100)}%</label>
+      <label class="label" for="wm-op">{t('Opacidade')} · {Math.round(o.opacity * 100)}%</label>
       <input id="wm-op" type="range" min="0.05" max="1" step="0.05" bind:value={o.opacity}>
     </div>
     <div class="row">
-      <span class="label" id="wu-l">Camada</span>
+      <span class="label" id="wu-l">{t('Camada')}</span>
       <fieldset class="seg" aria-labelledby="wu-l">
-        <label><input type="radio" bind:group={o.under} value={false}> Por cima do conteúdo</label>
-        <label><input type="radio" bind:group={o.under} value={true}> Por baixo</label>
+        <label><input type="radio" bind:group={o.under} value={false}> {t('Por cima do conteúdo')}</label>
+        <label><input type="radio" bind:group={o.under} value={true}> {t('Por baixo')}</label>
       </fieldset>
-      {#if o.under}<p class="hint">Por baixo, a marca fica escondida em páginas digitalizadas (a foto da página cobre tudo).</p>{/if}
+      {#if o.under}<p class="hint">{t('Por baixo, a marca fica escondida em páginas digitalizadas (a foto da página cobre tudo).')}</p>{/if}
     </div>
     <PageChoice pages={f.pages} bind:selection />
   {/snippet}
   {#snippet after(f)}
     {#if ready}
       <div class="panel prev">
-        <h2>Prévia</h2>
-        <PagePreview bytes={preview} width={460} label="Prévia da página {at + 1} com a marca d’água" />
+        <h2>{t('Prévia')}</h2>
+        <PagePreview bytes={preview} width={460} label={t('Prévia da página {n} com a marca d’água', { n: at + 1 })} />
         {#if f.pages > 1}<Pager bind:index={at} pages={f.pages} />{/if}
       </div>
     {/if}

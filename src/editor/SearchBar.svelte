@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   import { onMount } from 'svelte';
   import ChevronUp from '@lucide/svelte/icons/chevron-up';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -13,9 +14,9 @@
 
   const result = $derived.by(() => {
     if (!query.trim()) return '';
-    if (ed.find.state === 'pending') return 'Buscando…';
-    if (ed.find.state === 'notfound' || ed.find.total === 0) return 'Nada encontrado';
-    return `${ed.find.current} de ${ed.find.total}`;
+    if (ed.find.state === 'pending') return t('Buscando…');
+    if (ed.find.state === 'notfound' || ed.find.total === 0) return t('Nada encontrado');
+    return t('{i} de {n}', { i: ed.find.current, n: ed.find.total });
   });
 
   function search(again = false, previous = false) {
@@ -34,12 +35,12 @@
 </script>
 
 <div class="search" role="search">
-  <input bind:this={input} bind:value={query} type="search" placeholder="Buscar no documento" aria-label="Buscar no documento"
+  <input bind:this={input} bind:value={query} type="search" placeholder={t('Buscar no documento')} aria-label={t('Buscar no documento')}
     oninput={() => search()} onkeydown={onKeydown} enterkeyhint="search">
   <span class="result" aria-live="polite">{result}</span>
-  <button class="icon" aria-label="Resultado anterior" onclick={() => search(true, true)}><ChevronUp size={20} /></button>
-  <button class="icon" aria-label="Próximo resultado" onclick={() => search(true)}><ChevronDown size={20} /></button>
-  <button class="icon" aria-label="Fechar busca" onclick={close}><X size={20} /></button>
+  <button class="icon" aria-label={t('Resultado anterior')} onclick={() => search(true, true)}><ChevronUp size={20} /></button>
+  <button class="icon" aria-label={t('Próximo resultado')} onclick={() => search(true)}><ChevronDown size={20} /></button>
+  <button class="icon" aria-label={t('Fechar busca')} onclick={close}><X size={20} /></button>
 </div>
 
 <style>

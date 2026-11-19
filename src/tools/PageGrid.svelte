@@ -13,6 +13,7 @@
 </script>
 
 <script lang="ts">
+  import { t, tn } from '../lib/i18n.svelte';
   // Grade de páginas para organizar: selecionar, reordenar (arrastar ou botões), girar, duplicar,
   // excluir e inserir página em branco. Pensada primeiro para o toque.
   import { thumb, type Thumbs } from './thumbs';
@@ -58,15 +59,15 @@
 
   function rotate(delta: number) {
     items = items.map((it) => (isSel(it.key) ? { ...it, rotate: normRot(it.rotate + delta) } : it));
-    announce = `${selected.length} página(s) girada(s).`;
+    announce = tn(selected.length, '{n} página girada.', '{n} páginas giradas.');
   }
 
   function remove() {
     const n = selected.length;
-    if (n >= items.length) { announce = 'O documento precisa de pelo menos uma página.'; return; }
+    if (n >= items.length) { announce = t('O documento precisa de pelo menos uma página.'); return; }
     items = items.filter((it) => !isSel(it.key));
     selected = [];
-    announce = `${n} página(s) excluída(s).`;
+    announce = tn(n, '{n} página excluída.', '{n} páginas excluídas.');
   }
 
   function duplicate() {
@@ -78,7 +79,7 @@
     }
     items = out;
     selected = added;
-    announce = `${added.length} página(s) duplicada(s).`;
+    announce = tn(added.length, '{n} página duplicada.', '{n} páginas duplicadas.');
   }
 
   /** Move as selecionadas uma posição para trás (-1) ou para frente (+1). */
@@ -102,16 +103,16 @@
     const it: PageItem = { key: pageKey(), src: -1, index: 0, rotate: 0, blank: size };
     items = [...items.slice(0, at), it, ...items.slice(at)];
     selected = [it.key];
-    announce = 'Página em branco inserida.';
+    announce = t('Página em branco inserida.');
   }
 </script>
 
 <div class="grid-wrap">
-  <ol class="grid" aria-label="Páginas" use:sortable={{ item: '.card', handle: '.grip', onmove: (a, b) => (items = moveItem(items, a, b)) }}>
+  <ol class="grid" aria-label={t('Páginas')} use:sortable={{ item: '.card', handle: '.grip', onmove: (a, b) => (items = moveItem(items, a, b)) }}>
     {#each items as it, i (it.key)}
       {@const sel = isSel(it.key)}
       <li class="card" class:sel data-key={it.key}>
-        <button class="pick" aria-pressed={sel} aria-label="Página {i + 1}{multi && !it.blank ? ` (arquivo ${LETTERS[it.src] ?? it.src + 1})` : ''}{it.blank ? ' em branco' : ''}{it.rotate ? `, girada ${it.rotate}°` : ''}"
+        <button class="pick" aria-pressed={sel} aria-label={t('Página {n}', { n: i + 1 }) + (multi && !it.blank ? ' ' + t('(arquivo {f})', { f: LETTERS[it.src] ?? String(it.src + 1) }) : '') + (it.blank ? ' ' + t('em branco') : '') + (it.rotate ? ', ' + t('girada {deg}°', { deg: it.rotate }) : '')}
           onclick={() => toggle(it.key)}>
           <span class="sheet">
             {#if it.blank}
@@ -123,7 +124,7 @@
           {#if sel}<span class="check" aria-hidden="true"><CheckSquare size={20} /></span>{/if}
         </button>
         <span class="foot">
-          <span class="grip" data-drag title="Arraste para mover" aria-hidden="true"><Grip size={18} /></span>
+          <span class="grip" data-drag title={t('Arraste para mover')} aria-hidden="true"><Grip size={18} /></span>
           <span class="num">{i + 1}</span>
           {#if multi && !it.blank}<span class="src" title={sourceNames[it.src]}>{LETTERS[it.src] ?? it.src + 1}</span>{/if}
         </span>
@@ -132,21 +133,21 @@
   </ol>
 </div>
 
-<div class="bar" role="toolbar" aria-label="Ações nas páginas">
+<div class="bar" role="toolbar" aria-label={t('Ações nas páginas')}>
   {#if selected.length}
     <span class="count">{selected.length} selecionada{selected.length === 1 ? '' : 's'}</span>
-    <button class="act" onclick={() => rotate(-90)} aria-label="Girar para a esquerda"><RotateCcw size={20} /><span>Girar ←</span></button>
-    <button class="act" onclick={() => rotate(90)} aria-label="Girar para a direita"><RotateCw size={20} /><span>Girar →</span></button>
-    <button class="act" onclick={() => shift(-1)} aria-label="Mover para trás"><ArrowLeft size={20} /><span>Antes</span></button>
-    <button class="act" onclick={() => shift(1)} aria-label="Mover para frente"><ArrowRight size={20} /><span>Depois</span></button>
-    <button class="act" onclick={duplicate} aria-label="Duplicar"><Copy size={20} /><span>Duplicar</span></button>
-    <button class="act danger" onclick={remove} aria-label="Excluir"><Trash size={20} /><span>Excluir</span></button>
-    <button class="act" onclick={() => (selected = [])} aria-label="Limpar seleção"><X size={20} /><span>Limpar</span></button>
+    <button class="act" onclick={() => rotate(-90)} aria-label={t('Girar para a esquerda')}><RotateCcw size={20} /><span>{t('Girar')} ←</span></button>
+    <button class="act" onclick={() => rotate(90)} aria-label={t('Girar para a direita')}><RotateCw size={20} /><span>{t('Girar')} →</span></button>
+    <button class="act" onclick={() => shift(-1)} aria-label={t('Mover para trás')}><ArrowLeft size={20} /><span>{t('Antes')}</span></button>
+    <button class="act" onclick={() => shift(1)} aria-label={t('Mover para frente')}><ArrowRight size={20} /><span>{t('Depois')}</span></button>
+    <button class="act" onclick={duplicate} aria-label={t('Duplicar')}><Copy size={20} /><span>{t('Duplicar')}</span></button>
+    <button class="act danger" onclick={remove} aria-label={t('Excluir')}><Trash size={20} /><span>{t('Excluir')}</span></button>
+    <button class="act" onclick={() => (selected = [])} aria-label={t('Limpar seleção')}><X size={20} /><span>{t('Limpar')}</span></button>
   {:else}
-    <span class="count hint">Toque nas páginas para selecionar. Arraste pela alça <Grip size={14} aria-hidden="true" /> para mudar a ordem.</span>
-    <button class="act" onclick={() => (selected = items.map((i) => i.key))}><CheckSquare size={20} /><span>Todas</span></button>
+    <span class="count hint">{t('Toque nas páginas para selecionar. Arraste pela alça para mudar a ordem.')} <Grip size={14} aria-hidden="true" /></span>
+    <button class="act" onclick={() => (selected = items.map((i) => i.key))}><CheckSquare size={20} /><span>{t('Todas')}</span></button>
   {/if}
-  <button class="act" onclick={addBlank} aria-label="Inserir página em branco"><FilePlus size={20} /><span>Em branco</span></button>
+  <button class="act" onclick={addBlank} aria-label={t('Inserir página em branco')}><FilePlus size={20} /><span>{t('Em branco')}</span></button>
   {@render extraActions?.()}
 </div>
 <p class="visually-hidden" aria-live="polite">{announce}</p>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   import { TOOLS } from '../lib/tools';
   import { hrefFor } from '../lib/routes';
   import { requestOpen, readPdf } from '../editor/session';
@@ -14,7 +15,7 @@
     error = '';
     if (!file) return;
     const bytes = await readPdf(file);
-    if (!bytes) { error = 'Escolha um arquivo .pdf.'; return; }
+    if (!bytes) { error = t('Escolha um arquivo .pdf.'); return; }
     requestOpen({ kind: 'file', bytes, name: /\.pdf$/i.test(file.name) ? file.name : `${file.name}.pdf` });
   }
 
@@ -30,20 +31,20 @@
     class="drop"
     class:dragging
     role="region"
-    aria-label="Abrir PDF para editar"
+    aria-label={t('Abrir PDF para editar')}
     ondragover={(e) => { e.preventDefault(); dragging = true; }}
     ondragleave={() => (dragging = false)}
     ondrop={onDrop}
   >
-    <h1>Edite seus PDFs sem enviar nada para a internet</h1>
-    <p>Preencha formulários, assine e escreva em qualquer PDF. Tudo acontece aqui no seu navegador, até offline.</p>
+    <h1>{t('Edite seus PDFs sem enviar nada para a internet')}</h1>
+    <p>{t('Preencha formulários, assine e escreva em qualquer PDF. Tudo acontece aqui no seu navegador, até offline.')}</p>
     <button class="button primary big" onclick={() => input.click()}>
       <FileUp size={22} aria-hidden="true" />
-      Abrir PDF para editar
+      {t('Abrir PDF para editar')}
     </button>
     <input bind:this={input} type="file" accept="application/pdf,.pdf" hidden
       onchange={(e) => openInEditor(e.currentTarget.files?.[0])}>
-    <p class="hint">ou arraste o arquivo para esta área</p>
+    <p class="hint">{t('ou arraste o arquivo para esta área')}</p>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
   </div>
 
@@ -51,16 +52,16 @@
 </section>
 
 <section class="wrap" aria-labelledby="ferramentas">
-  <h2 id="ferramentas">Ferramentas</h2>
+  <h2 id="ferramentas">{t('Ferramentas')}</h2>
   <ul class="grid">
     {#each TOOLS as tool (tool.id)}
       {@const Icon = tool.icon}
       <li>
         <a class="card" href={hrefFor({ name: 'tool', id: tool.id })}>
           <span class="icon"><Icon size={24} aria-hidden="true" /></span>
-          <span class="name">{tool.name}</span>
-          <span class="desc">{tool.description}</span>
-          {#if !tool.ready}<span class="badge">Em breve</span>{/if}
+          <span class="name">{t(tool.name)}</span>
+          <span class="desc">{t(tool.description)}</span>
+          {#if !tool.ready}<span class="badge">{t('Em breve')}</span>{/if}
         </a>
       </li>
     {/each}

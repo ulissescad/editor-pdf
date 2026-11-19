@@ -6,6 +6,7 @@ import {
   popGraphicsState, pushGraphicsState, rgb, type PDFFont, type PDFImage, type PDFPage,
 } from '@cantoo/pdf-lib';
 import { contentMatrix, viewSize, type PageGeo } from '../editor/geom';
+import { tk, tPdf } from '../lib/i18n.svelte';
 
 /** Caixa visível (CropBox) e giro da página. */
 export function pageGeo(page: PDFPage): PageGeo {
@@ -72,9 +73,10 @@ export function numberLabel(index: number, count: number, o: Pick<NumberOptions,
   const n = o.start + (p - o.from);
   const total = o.start + (count - o.from);
   switch (o.format) {
-    case 'n-de': return `${n} de ${total}`;
-    case 'pag': return `Página ${n}`;
-    case 'pag-de': return `Página ${n} de ${total}`;
+    // Texto que vai para dentro do PDF: no idioma do site, se a fonte padrão do PDF tiver as letras (tPdf)
+    case 'n-de': return tPdf('{n} de {total}', { n: String(n), total: String(total) });
+    case 'pag': return tPdf('Página {n}', { n: String(n) });
+    case 'pag-de': return tPdf('Página {n} de {total}', { n: String(n), total: String(total) });
     case 'traco': return `– ${n} –`;
     default: return String(n);
   }
@@ -125,7 +127,7 @@ export interface WatermarkOptions {
 }
 
 export const WATERMARK_DEFAULTS: WatermarkOptions = {
-  kind: 'text', text: 'CONFIDENCIAL', bold: true, color: '#c0392b', opacity: 0.25, scale: 0.7,
+  kind: 'text', text: tk('CONFIDENCIAL'), bold: true, color: '#c0392b', opacity: 0.25, scale: 0.7,
   diagonal: true, tile: false, under: false,
 };
 

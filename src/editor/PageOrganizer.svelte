@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   // “Organizar páginas” dentro do editor: a mesma grade da ferramenta Organizar, sobre o documento aberto.
   // Textos, assinaturas e campos acompanham as páginas (state.applyPages).
   import { onDestroy, onMount } from 'svelte';
@@ -44,15 +45,15 @@
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<div class="overlay" role="dialog" aria-modal="true" aria-label="Organizar páginas" tabindex="-1" bind:this={dialog}
+<div class="overlay" role="dialog" aria-modal="true" aria-label={t('Organizar páginas')} tabindex="-1" bind:this={dialog}
   onkeydown={(e) => { if (e.key === 'Escape') onclose(); e.stopPropagation(); }}>
   <header>
-    <button class="icon" aria-label="Cancelar" onclick={onclose}><X size={22} /></button>
-    <strong>Organizar páginas</strong>
-    <button class="apply" onclick={apply} disabled={!ready || unchanged}><Check size={18} /> Aplicar</button>
+    <button class="icon" aria-label={t('Cancelar')} onclick={onclose}><X size={22} /></button>
+    <strong>{t('Organizar páginas')}</strong>
+    <button class="apply" onclick={apply} disabled={!ready || unchanged}><Check size={18} /> {t('Aplicar')}</button>
   </header>
   <div class="body">
-    <p class="note">Textos, assinaturas e campos que você colocou acompanham as páginas.</p>
+    <p class="note">{t('Textos, assinaturas e campos que você colocou acompanham as páginas.')}</p>
     {#if ready}<PageGrid bind:items {thumbs} {sizeOf} />{/if}
   </div>
 </div>

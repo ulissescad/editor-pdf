@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tn } from '../lib/i18n.svelte';
   // Imagens para PDF (PLANO.md, item 2.4): fotos e imagens (JPG, PNG, WebP…), inclusive da câmera do
   // celular, uma por página. As fotos são reduzidas para no máximo 2400 px e respeitam a orientação.
   import { onDestroy, onMount } from 'svelte';
@@ -45,7 +46,7 @@
     const bad: string[] = [];
     for (const [n, f] of list.entries()) {
       if (!isImage(f)) { bad.push(f.name); continue; }
-      busy = `Preparando imagem ${n + 1} de ${list.length}…`;
+      busy = t('Preparando imagem {i} de {n}…', { i: n + 1, n: list.length });
       try {
         const asset = await loadImageFile(f);
         entries = [...entries, { key: seq++, name: f.name, asset, url: urlOf(asset) }];
@@ -55,7 +56,7 @@
       }
     }
     busy = '';
-    if (bad.length) error = `Não foi possível usar: ${bad.join(', ')}. Use JPG, PNG ou WebP.`;
+    if (bad.length) error = t('Não foi possível usar: {list}. Use JPG, PNG ou WebP.', { list: bad.join(', ') });
   }
 
   /** Gira a imagem 90° (redesenhando), para fotos que saíram deitadas. */
@@ -82,15 +83,15 @@
 
   async function build() {
     error = '';
-    busy = 'Gerando o PDF…';
+    busy = t('Gerando o PDF…');
     try {
       const { imagesToPdf } = await import('../pdf/pages');
       const bytes = await imagesToPdf(entries.map((e) => e.asset), { size, orientation, margin });
-      const first = entries[0].name.replace(/\.[^.]+$/, '') || 'imagens';
-      result = { name: `${entries.length > 1 ? 'imagens' : first}.pdf`, bytes, mime: 'application/pdf' };
+      const first = entries[0].name.replace(/\.[^.]+$/, '') || t('imagens');
+      result = { name: `${entries.length > 1 ? t('imagens') : first}.pdf`, bytes, mime: 'application/pdf' };
     } catch (err) {
       console.error(err);
-      error = 'Não foi possível gerar o PDF. Tente novamente.';
+      error = t('Não foi possível gerar o PDF. Tente novamente.');
     } finally {
       busy = '';
     }
@@ -105,61 +106,61 @@
 
 <ToolPage id="imagens-para-pdf" wide>
   {#if result}
-    <Result files={[result]} zipName="imagens.zip" summary="{entries.length} página{entries.length === 1 ? '' : 's'}."
+    <Result files={[result]} zipName="{t('imagens')}.zip" summary={tn(entries.length, '{n} página.', '{n} páginas.')}
       onedit={(f) => requestOpen({ kind: 'file', bytes: f.bytes, name: f.name })} onreset={reset} />
   {:else}
     {#if entries.length}
-      <ol class="grid" aria-label="Imagens, na ordem das páginas" use:sortable={{ item: '.card', handle: '.grip', onmove: move }}>
+      <ol class="grid" aria-label={t('Imagens, na ordem das páginas')} use:sortable={{ item: '.card', handle: '.grip', onmove: move }}>
         {#each entries as e, i (e.key)}
           <li class="card">
-            <span class="sheet"><img src={e.url} alt="Imagem {i + 1}: {e.name}" draggable="false"></span>
+            <span class="sheet"><img src={e.url} alt={t('Imagem {i}: {name}', { i: i + 1, name: e.name })} draggable="false"></span>
             <span class="foot">
-              <span class="grip" aria-hidden="true" title="Arraste para mudar a ordem"><Grip size={18} /></span>
+              <span class="grip" aria-hidden="true" title={t('Arraste para mudar a ordem')}><Grip size={18} /></span>
               <span class="num">{i + 1}</span>
-              <button class="icon" aria-label="Mover a imagem {i + 1} para antes" disabled={i === 0} onclick={() => move(i, i - 1)}><ArrowLeft size={18} /></button>
-              <button class="icon" aria-label="Mover a imagem {i + 1} para depois" disabled={i === entries.length - 1} onclick={() => move(i, i + 1)}><ArrowRight size={18} /></button>
-              <button class="icon" aria-label="Girar a imagem {i + 1}" onclick={() => rotate(e)}><RotateCw size={18} /></button>
-              <button class="icon danger" aria-label="Remover a imagem {i + 1}" onclick={() => remove(e)}><Trash size={18} /></button>
+              <button class="icon" aria-label={t('Mover a imagem {n} para antes', { n: i + 1 })} disabled={i === 0} onclick={() => move(i, i - 1)}><ArrowLeft size={18} /></button>
+              <button class="icon" aria-label={t('Mover a imagem {n} para depois', { n: i + 1 })} disabled={i === entries.length - 1} onclick={() => move(i, i + 1)}><ArrowRight size={18} /></button>
+              <button class="icon" aria-label={t('Girar a imagem {n}', { n: i + 1 })} onclick={() => rotate(e)}><RotateCw size={18} /></button>
+              <button class="icon danger" aria-label={t('Remover a imagem {n}', { n: i + 1 })} onclick={() => remove(e)}><Trash size={18} /></button>
             </span>
           </li>
         {/each}
       </ol>
     {/if}
-    <FileDrop label={entries.length ? 'Adicionar imagens' : 'Escolher imagens'} accept="image/*" multiple camera
+    <FileDrop label={entries.length ? t('Adicionar imagens') : t('Escolher imagens')} accept="image/*" multiple camera
       compact={entries.length > 0} onfiles={addFiles} />
 
     {#if entries.length}
       <div class="panel opts">
         <div class="options">
           <div class="row">
-            <span class="label" id="size-l">Tamanho da página</span>
+            <span class="label" id="size-l">{t('Tamanho da página')}</span>
             <fieldset class="seg" aria-labelledby="size-l">
               <label><input type="radio" bind:group={size} value="a4"> A4</label>
-              <label><input type="radio" bind:group={size} value="letter"> Carta</label>
-              <label><input type="radio" bind:group={size} value="image"> Igual à imagem</label>
+              <label><input type="radio" bind:group={size} value="letter"> {t('Carta')}</label>
+              <label><input type="radio" bind:group={size} value="image"> {t('Igual à imagem')}</label>
             </fieldset>
           </div>
           {#if size !== 'image'}
             <div class="row">
-              <span class="label" id="ori-l">Orientação</span>
+              <span class="label" id="ori-l">{t('Orientação')}</span>
               <fieldset class="seg" aria-labelledby="ori-l">
-                <label><input type="radio" bind:group={orientation} value="auto"> Automática</label>
-                <label><input type="radio" bind:group={orientation} value="portrait"> Retrato</label>
-                <label><input type="radio" bind:group={orientation} value="landscape"> Paisagem</label>
+                <label><input type="radio" bind:group={orientation} value="auto"> {t('Automática')}</label>
+                <label><input type="radio" bind:group={orientation} value="portrait"> {t('Retrato')}</label>
+                <label><input type="radio" bind:group={orientation} value="landscape"> {t('Paisagem')}</label>
               </fieldset>
             </div>
           {/if}
           <div class="row">
-            <span class="label" id="mar-l">Margem</span>
+            <span class="label" id="mar-l">{t('Margem')}</span>
             <fieldset class="seg" aria-labelledby="mar-l">
-              <label><input type="radio" bind:group={margin} value={0}> Sem margem</label>
-              <label><input type="radio" bind:group={margin} value={20}> Pequena</label>
-              <label><input type="radio" bind:group={margin} value={40}> Grande</label>
+              <label><input type="radio" bind:group={margin} value={0}> {t('Sem margem')}</label>
+              <label><input type="radio" bind:group={margin} value={20}> {t('Pequena')}</label>
+              <label><input type="radio" bind:group={margin} value={40}> {t('Grande')}</label>
             </fieldset>
           </div>
         </div>
         <div class="go">
-          <button class="button primary" onclick={build} disabled={!!busy}><FileOutput size={20} aria-hidden="true" /> Gerar PDF</button>
+          <button class="button primary" onclick={build} disabled={!!busy}><FileOutput size={20} aria-hidden="true" /> {t('Gerar PDF')}</button>
         </div>
       </div>
     {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   // Menu do objeto (PLANO.md, seção 4): toque longo no celular, clique direito ou tecla de menu no computador.
   import { onMount } from 'svelte';
   import { isFixed } from './model';
@@ -21,14 +22,14 @@
     if (!obj) return [];
     const list: Array<{ label: string; icon: Component; run: () => void; danger?: boolean }> = [];
     if (!isFixed(obj)) {
-      list.push({ label: 'Copiar', icon: Copy, run: () => ed.copy() });
-      list.push({ label: 'Duplicar', icon: Files, run: () => ed.duplicate() });
+      list.push({ label: t('Copiar'), icon: Copy, run: () => ed.copy() });
+      list.push({ label: t('Duplicar'), icon: Files, run: () => ed.duplicate() });
       if (obj.kind !== 'note') {
-        list.push({ label: 'Trazer para a frente', icon: BringToFront, run: () => ed.reorder('front') });
-        list.push({ label: 'Enviar para trás', icon: SendToBack, run: () => ed.reorder('back') });
+        list.push({ label: t('Trazer para a frente'), icon: BringToFront, run: () => ed.reorder('front') });
+        list.push({ label: t('Enviar para trás'), icon: SendToBack, run: () => ed.reorder('back') });
       }
     }
-    list.push({ label: 'Excluir', icon: Trash, run: () => ed.remove(), danger: true });
+    list.push({ label: t('Excluir'), icon: Trash, run: () => ed.remove(), danger: true });
     return list;
   });
 
@@ -71,7 +72,7 @@
 </script>
 
 {#if obj}
-  <div class="menu" role="menu" aria-label="Ações do objeto" tabindex="-1" bind:this={menu}
+  <div class="menu" role="menu" aria-label={t('Ações do objeto')} tabindex="-1" bind:this={menu}
     style:left="{pos.left}px" style:top="{pos.top}px" onkeydown={onKeydown}>
     {#each items as item (item.label)}
       {@const Icon = item.icon}

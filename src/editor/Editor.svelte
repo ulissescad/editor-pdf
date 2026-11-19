@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fmtDate, t, tk, tn } from '../lib/i18n.svelte';
   import { onDestroy, onMount } from 'svelte';
   import { DRAW_TOOLS, EditorState, type Tool } from './state.svelte';
   import { PdfView } from './viewer';
@@ -73,7 +74,6 @@
   });
 
   const showProps = $derived(ed.hasDoc && (ed.tool !== 'select' || !!ed.selected));
-  const fmtTime = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   onMount(async () => {
     ed.view = await PdfView.create(container, viewerDiv, {
@@ -106,7 +106,7 @@
   async function openFile(file: File | undefined) {
     if (!file) return;
     const bytes = await readPdf(file);
-    if (!bytes) { ed.status = { kind: 'err', text: 'Escolha um arquivo .pdf.' }; return; }
+    if (!bytes) { ed.status = { kind: 'err', text: t('Escolha um arquivo .pdf.') }; return; }
     await ed.flushSave();
     await ed.openBytes(bytes, /\.pdf$/i.test(file.name) ? file.name : `${file.name}.pdf`);
     searchOpen = false;
@@ -205,40 +205,40 @@
       return await fn();
     } catch (err) {
       console.error(err);
-      ed.status = { kind: 'err', text: 'Não foi possível gerar o PDF. Tente novamente.' };
+      ed.status = { kind: 'err', text: t('Não foi possível gerar o PDF. Tente novamente.') };
     } finally {
       ed.busy = null;
     }
   }
-  const download = () => withBusy('Gerando o PDF…', async () => downloadPdf(await ed.buildPdf(), ed.outputName));
+  const download = () => withBusy(t('Gerando o PDF…'), async () => downloadPdf(await ed.buildPdf(), ed.outputName));
 
   // ================= assinatura e imagem =================
   function useSignature(asset: ImageAsset) {
     signOpen = false;
     ed.addImage(asset, true);
-    ed.status = { kind: 'info', text: 'Arraste a assinatura até o lugar certo e use os cantos para ajustar o tamanho.' };
+    ed.status = { kind: 'info', text: t('Arraste a assinatura até o lugar certo e use os cantos para ajustar o tamanho.') };
   }
 
   async function addImageFile(file: File | undefined) {
     if (!file) return;
     if (!/^image\//.test(file.type) && !/\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(file.name)) {
-      ed.status = { kind: 'err', text: 'Escolha uma imagem (JPG, PNG ou WebP).' };
+      ed.status = { kind: 'err', text: t('Escolha uma imagem (JPG, PNG ou WebP).') };
       return;
     }
-    ed.busy = 'Preparando a imagem…';
+    ed.busy = t('Preparando a imagem…');
     try {
       ed.addImage(await loadImageFile(file));
     } catch (err) {
       console.error(err);
-      ed.status = { kind: 'err', text: 'Não foi possível abrir esta imagem neste navegador. Tente JPG ou PNG.' };
+      ed.status = { kind: 'err', text: t('Não foi possível abrir esta imagem neste navegador. Tente JPG ou PNG.') };
     } finally {
       ed.busy = null;
     }
   }
-  const share = () => withBusy('Preparando para compartilhar…', async () => { await sharePdf(await ed.buildPdf(), ed.outputName); });
-  const print = () => withBusy('Preparando a impressão…', async () => {
+  const share = () => withBusy(t('Preparando para compartilhar…'), async () => { await sharePdf(await ed.buildPdf(), ed.outputName); });
+  const print = () => withBusy(t('Preparando a impressão…'), async () => {
     const bytes = await ed.buildPdf();
-    await printPdf(bytes, (n, total) => (ed.busy = `Preparando a impressão… ${n}/${total}`));
+    await printPdf(bytes, (n, total) => (ed.busy = `${t('Preparando a impressão…')} ${n}/${total}`));
   });
 
   // ================= atalhos =================
@@ -277,29 +277,29 @@
   }
 
   const TOOL_TIPS: Record<Exclude<Tool, 'select'>, [string, string]> = {
-    text: ['Clique na página para criar uma caixa de texto, ou arraste para desenhá-la no tamanho certo.',
-      'Toque na página onde quer escrever. Arraste a caixa para mover e use as alças para mudar o tamanho.'],
-    stamp: ['Escolha o símbolo (ou a data) e clique na página para marcar. Cada clique coloca um.',
-      'Escolha o símbolo (ou a data) e toque na página para marcar. Cada toque coloca um.'],
-    field: ['Clique ou arraste na página para criar um campo preenchível, ou use “Detectar campos”.',
-      'Toque na página para criar um campo preenchível, ou use “Detectar campos”.'],
-    markup: ['Arraste sobre o texto para destacar, sublinhar ou riscar. Um clique numa palavra marca a palavra.',
-      'Arraste o dedo sobre o texto para marcar; um toque marca a palavra. Para rolar, use dois dedos.'],
-    ink: ['Desenhe arrastando na página. Para mover ou apagar um desenho, use Selecionar.',
-      'Desenhe com um dedo. Para rolar ou dar zoom, use dois dedos.'],
-    shape: ['Arraste na página para desenhar a forma. Para ajustar depois, use Selecionar.',
-      'Arraste com um dedo para desenhar a forma. Para rolar, use dois dedos.'],
-    note: ['Clique na página para deixar um comentário (nota).', 'Toque na página para deixar um comentário (nota).'],
+    text: [tk('Clique na página para criar uma caixa de texto, ou arraste para desenhá-la no tamanho certo.'),
+      tk('Toque na página onde quer escrever. Arraste a caixa para mover e use as alças para mudar o tamanho.')],
+    stamp: [tk('Escolha o símbolo (ou a data) e clique na página para marcar. Cada clique coloca um.'),
+      tk('Escolha o símbolo (ou a data) e toque na página para marcar. Cada toque coloca um.')],
+    field: [tk('Clique ou arraste na página para criar um campo preenchível, ou use “Detectar campos”.'),
+      tk('Toque na página para criar um campo preenchível, ou use “Detectar campos”.')],
+    markup: [tk('Arraste sobre o texto para destacar, sublinhar ou riscar. Um clique numa palavra marca a palavra.'),
+      tk('Arraste o dedo sobre o texto para marcar; um toque marca a palavra. Para rolar, use dois dedos.')],
+    ink: [tk('Desenhe arrastando na página. Para mover ou apagar um desenho, use Selecionar.'),
+      tk('Desenhe com um dedo. Para rolar ou dar zoom, use dois dedos.')],
+    shape: [tk('Arraste na página para desenhar a forma. Para ajustar depois, use Selecionar.'),
+      tk('Arraste com um dedo para desenhar a forma. Para rolar, use dois dedos.')],
+    note: [tk('Clique na página para deixar um comentário (nota).'), tk('Toque na página para deixar um comentário (nota).')],
   };
 
-  function setTool(t: Tool) {
+  function setTool(tool: Tool) {
     if (ed.selectedId) ed.select(null);
-    ed.tool = t;
-    ed.status = t === 'select' ? null : { kind: 'info', text: TOOL_TIPS[t][isWide ? 0 : 1] };
+    ed.tool = tool;
+    ed.status = tool === 'select' ? null : { kind: 'info', text: t(TOOL_TIPS[tool][isWide ? 0 : 1]) };
   }
 
   const saveLabel = $derived(
-    ed.saving === 'pending' ? 'Salvando…' : ed.saving === 'saved' ? 'Salvo neste aparelho' : ed.saving === 'error' ? 'Rascunho não salvo' : '',
+    ed.saving === 'pending' ? t('Salvando…') : ed.saving === 'saved' ? t('Salvo neste aparelho') : ed.saving === 'error' ? t('Rascunho não salvo') : '',
   );
 </script>
 
@@ -308,48 +308,48 @@
 <svelte:document onvisibilitychange={onVisibility} />
 
 <div class="editor" class:text-mode={ed.tool !== 'select'} class:drawing
-  role="application" aria-label="Editor de PDF"
+  role="application" aria-label={t('Editor de PDF')}
   ondragover={(e) => { e.preventDefault(); dragging = true; }}
   ondragleave={(e) => { if (e.target === e.currentTarget) dragging = false; }}
   ondrop={onDrop}>
 
   <header class="top">
-    <a class="icon" href="#/" aria-label="Voltar ao início" title="Início"><ArrowLeft size={22} /></a>
+    <a class="icon" href="#/" aria-label={t('Voltar ao início')} title={t('Início')}><ArrowLeft size={22} /></a>
     <div class="title">
-      <strong title={ed.fileName}>{ed.hasDoc ? ed.fileName : 'Editor de PDF'}</strong>
+      <strong title={ed.fileName}>{ed.hasDoc ? ed.fileName : t('Editor de PDF')}</strong>
       {#if ed.hasDoc}
         <small>
-          {ed.pages} página{ed.pages === 1 ? '' : 's'}
+          {tn(ed.pages, '{n} página', '{n} páginas')}
           {#if saveLabel}· <span class="save save-{ed.saving}">{#if ed.saving === 'saved'}<Check size={12} />{/if}{saveLabel}</span>{/if}
         </small>
       {/if}
     </div>
     {#if ed.hasDoc}
-      <button class="icon" aria-label="Desfazer" title="Desfazer (Ctrl+Z)" disabled={!ed.canUndo} onclick={() => ed.undo()}><Undo size={20} /></button>
-      <button class="icon" aria-label="Refazer" title="Refazer (Ctrl+Y)" disabled={!ed.canRedo} onclick={() => ed.redo()}><Redo size={20} /></button>
+      <button class="icon" aria-label={t('Desfazer')} title="{t('Desfazer')} (Ctrl+Z)" disabled={!ed.canUndo} onclick={() => ed.undo()}><Undo size={20} /></button>
+      <button class="icon" aria-label={t('Refazer')} title="{t('Refazer')} (Ctrl+Y)" disabled={!ed.canRedo} onclick={() => ed.redo()}><Redo size={20} /></button>
       <div class="wide-only group">
-        <button class="icon" aria-label="Diminuir zoom" onclick={() => ed.view?.zoomBy(1 / 1.2)}><ZoomOut size={20} /></button>
+        <button class="icon" aria-label={t('Diminuir zoom')} onclick={() => ed.view?.zoomBy(1 / 1.2)}><ZoomOut size={20} /></button>
         <span class="zoom" aria-live="polite">{Math.round(ed.scale * 100)}%</span>
-        <button class="icon" aria-label="Aumentar zoom" onclick={() => ed.view?.zoomBy(1.2)}><ZoomIn size={20} /></button>
-        <button class="icon" aria-label="Ajustar à largura" title="Ajustar à largura" onclick={() => ed.view?.fitWidth()}><MoveHorizontal size={20} /></button>
+        <button class="icon" aria-label={t('Aumentar zoom')} onclick={() => ed.view?.zoomBy(1.2)}><ZoomIn size={20} /></button>
+        <button class="icon" aria-label={t('Ajustar à largura')} title={t('Ajustar à largura')} onclick={() => ed.view?.fitWidth()}><MoveHorizontal size={20} /></button>
         <span class="sep"></span>
-        <button class="icon" aria-label="Miniaturas das páginas" aria-pressed={thumbsOpen} onclick={() => (thumbsOpen = !thumbsOpen)}><PanelLeft size={20} /></button>
-        <button class="icon" aria-label="Buscar" title="Buscar (Ctrl+F)" aria-pressed={searchOpen} onclick={() => (searchOpen = !searchOpen)}><Search size={20} /></button>
-        <button class="icon" aria-label="Imprimir" title="Imprimir (Ctrl+P)" onclick={print}><Printer size={20} /></button>
-        {#if canShare}<button class="icon" aria-label="Compartilhar" onclick={share}><Share size={20} /></button>{/if}
+        <button class="icon" aria-label={t('Miniaturas das páginas')} aria-pressed={thumbsOpen} onclick={() => (thumbsOpen = !thumbsOpen)}><PanelLeft size={20} /></button>
+        <button class="icon" aria-label={t('Buscar')} title="{t('Buscar')} (Ctrl+F)" aria-pressed={searchOpen} onclick={() => (searchOpen = !searchOpen)}><Search size={20} /></button>
+        <button class="icon" aria-label={t('Imprimir')} title="{t('Imprimir')} (Ctrl+P)" onclick={print}><Printer size={20} /></button>
+        {#if canShare}<button class="icon" aria-label={t('Compartilhar')} onclick={share}><Share size={20} /></button>{/if}
       </div>
-      <button class="primary" onclick={download} disabled={!!ed.busy} title="Baixar (Ctrl+S)">
-        <Download size={18} /><span class="label">Baixar</span>
+      <button class="primary" onclick={download} disabled={!!ed.busy} title="{t('Baixar')} (Ctrl+S)">
+        <Download size={18} /><span class="label">{t('Baixar')}</span>
       </button>
       <div class="narrow-only menu-wrap">
-        <button class="icon" aria-label="Mais opções" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}><More size={22} /></button>
+        <button class="icon" aria-label={t('Mais opções')} aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}><More size={22} /></button>
         {#if menuOpen}
           <div class="menu" role="menu">
-            {#if canShare}<button role="menuitem" onclick={() => { menuOpen = false; share(); }}><Share size={18} /> Compartilhar</button>{/if}
-            <button role="menuitem" onclick={() => { menuOpen = false; print(); }}><Printer size={18} /> Imprimir</button>
-            <button role="menuitem" onclick={() => { menuOpen = false; ed.view?.fitWidth(); }}><MoveHorizontal size={18} /> Ajustar à largura</button>
-            <button role="menuitem" onclick={() => { menuOpen = false; organizeOpen = true; }}><LayoutGrid size={18} /> Organizar páginas</button>
-            <button role="menuitem" onclick={() => { menuOpen = false; fileInput.click(); }}><FileUp size={18} /> Abrir outro PDF</button>
+            {#if canShare}<button role="menuitem" onclick={() => { menuOpen = false; share(); }}><Share size={18} /> {t('Compartilhar')}</button>{/if}
+            <button role="menuitem" onclick={() => { menuOpen = false; print(); }}><Printer size={18} /> {t('Imprimir')}</button>
+            <button role="menuitem" onclick={() => { menuOpen = false; ed.view?.fitWidth(); }}><MoveHorizontal size={18} /> {t('Ajustar à largura')}</button>
+            <button role="menuitem" onclick={() => { menuOpen = false; organizeOpen = true; }}><LayoutGrid size={18} /> {t('Organizar páginas')}</button>
+            <button role="menuitem" onclick={() => { menuOpen = false; fileInput.click(); }}><FileUp size={18} /> {t('Abrir outro PDF')}</button>
           </div>
         {/if}
       </div>
@@ -357,19 +357,19 @@
   </header>
 
   {#if ed.hasDoc}
-    <nav class="tools" aria-label="Ferramentas">
-      <button aria-pressed={ed.tool === 'select'} onclick={() => setTool('select')}><Pointer size={20} /><span>Selecionar</span></button>
-      <button aria-pressed={ed.tool === 'text'} onclick={() => setTool('text')}><TypeIcon size={20} /><span>Texto</span></button>
-      <button onclick={() => { setTool('select'); signOpen = true; }}><SignatureIcon size={20} /><span>Assinar</span></button>
-      <button aria-pressed={ed.tool === 'stamp'} onclick={() => setTool('stamp')}><CheckCheck size={20} /><span>Símbolos</span></button>
-      <button onclick={() => imageInput.click()}><ImageIcon size={20} /><span>Imagem</span></button>
-      <button aria-pressed={ed.tool === 'markup'} onclick={() => setTool('markup')}><Highlighter size={20} /><span>Destacar</span></button>
-      <button aria-pressed={ed.tool === 'ink'} onclick={() => setTool('ink')}><PenLine size={20} /><span>Caneta</span></button>
-      <button aria-pressed={ed.tool === 'shape'} onclick={() => setTool('shape')}><Shapes size={20} /><span>Formas</span></button>
-      <button aria-pressed={ed.tool === 'note'} onclick={() => setTool('note')}><NoteIcon size={20} /><span>Nota</span></button>
-      <button aria-pressed={ed.tool === 'field'} onclick={() => setTool('field')}><FieldIcon size={20} /><span>Campos</span></button>
-      <button class="narrow-only" aria-pressed={thumbsOpen} onclick={() => (thumbsOpen = !thumbsOpen)}><Files size={20} /><span>Páginas</span></button>
-      <button class="narrow-only" aria-pressed={searchOpen} onclick={() => (searchOpen = !searchOpen)}><Search size={20} /><span>Buscar</span></button>
+    <nav class="tools" aria-label={t('Ferramentas')}>
+      <button aria-pressed={ed.tool === 'select'} onclick={() => setTool('select')}><Pointer size={20} /><span>{t('Selecionar')}</span></button>
+      <button aria-pressed={ed.tool === 'text'} onclick={() => setTool('text')}><TypeIcon size={20} /><span>{t('Texto')}</span></button>
+      <button onclick={() => { setTool('select'); signOpen = true; }}><SignatureIcon size={20} /><span>{t('Assinar')}</span></button>
+      <button aria-pressed={ed.tool === 'stamp'} onclick={() => setTool('stamp')}><CheckCheck size={20} /><span>{t('Símbolos')}</span></button>
+      <button onclick={() => imageInput.click()}><ImageIcon size={20} /><span>{t('Imagem')}</span></button>
+      <button aria-pressed={ed.tool === 'markup'} onclick={() => setTool('markup')}><Highlighter size={20} /><span>{t('Destacar')}</span></button>
+      <button aria-pressed={ed.tool === 'ink'} onclick={() => setTool('ink')}><PenLine size={20} /><span>{t('Caneta')}</span></button>
+      <button aria-pressed={ed.tool === 'shape'} onclick={() => setTool('shape')}><Shapes size={20} /><span>{t('Formas')}</span></button>
+      <button aria-pressed={ed.tool === 'note'} onclick={() => setTool('note')}><NoteIcon size={20} /><span>{t('Nota')}</span></button>
+      <button aria-pressed={ed.tool === 'field'} onclick={() => setTool('field')}><FieldIcon size={20} /><span>{t('Campos')}</span></button>
+      <button class="narrow-only" aria-pressed={thumbsOpen} onclick={() => (thumbsOpen = !thumbsOpen)}><Files size={20} /><span>{t('Páginas')}</span></button>
+      <button class="narrow-only" aria-pressed={searchOpen} onclick={() => (searchOpen = !searchOpen)}><Search size={20} /><span>{t('Buscar')}</span></button>
     </nav>
   {/if}
 
@@ -377,9 +377,9 @@
     {#if searchOpen && ed.hasDoc}<SearchBar {ed} onclose={() => (searchOpen = false)} />{/if}
     {#if ed.restoredAt}
       <div class="msg info" role="status">
-        <span>Rascunho de {fmtTime.format(ed.restoredAt)} restaurado.</span>
-        <button class="link" onclick={() => ed.discardDraft()}>Começar do zero</button>
-        <button class="icon small" aria-label="Fechar aviso" onclick={() => (ed.restoredAt = null)}><X size={16} /></button>
+        <span>{t('Rascunho de {when} restaurado.', { when: fmtDate(ed.restoredAt, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) })}</span>
+        <button class="link" onclick={() => ed.discardDraft()}>{t('Começar do zero')}</button>
+        <button class="icon small" aria-label={t('Fechar aviso')} onclick={() => (ed.restoredAt = null)}><X size={16} /></button>
       </div>
     {/if}
     {#if ed.status}
@@ -389,7 +389,7 @@
           {@const action = ed.status.action}
           <button class="link" onclick={() => { const run = action.run; ed.status = null; run(); }}>{action.label}</button>
         {/if}
-        <button class="icon small" aria-label="Fechar aviso" onclick={() => ed.dismissStatus()}><X size={16} /></button>
+        <button class="icon small" aria-label={t('Fechar aviso')} onclick={() => ed.dismissStatus()}><X size={16} /></button>
       </div>
     {/if}
     {#if ed.busy}<div class="msg info" role="status"><Loader size={16} class="spin" /> <span>{ed.busy}</span></div>{/if}
@@ -397,13 +397,13 @@
 
   <div class="middle">
     {#if thumbsOpen && ed.hasDoc}
-      <aside class="thumbs" aria-label="Miniaturas">
+      <aside class="thumbs" aria-label={t('Miniaturas')}>
         <div class="thumbs-head narrow-only">
-          <strong>Páginas</strong>
-          <button class="icon" aria-label="Fechar páginas" onclick={() => (thumbsOpen = false)}><X size={20} /></button>
+          <strong>{t('Páginas')}</strong>
+          <button class="icon" aria-label={t('Fechar páginas')} onclick={() => (thumbsOpen = false)}><X size={20} /></button>
         </div>
-        <button class="organize" aria-label="Organizar páginas" onclick={() => { organizeOpen = true; if (!isWide) thumbsOpen = false; }}>
-          <LayoutGrid size={18} /> Organizar
+        <button class="organize" aria-label={t('Organizar páginas')} onclick={() => { organizeOpen = true; if (!isWide) thumbsOpen = false; }}>
+          <LayoutGrid size={18} /> {t('Organizar')}
         </button>
         <Thumbnails {ed} onpick={() => { if (!isWide) thumbsOpen = false; }} />
       </aside>
@@ -442,13 +442,13 @@
       {:else}
         <div class="empty">
           {#if ed.loading}
-            <p><Loader size={20} class="spin" /> Abrindo…</p>
+            <p><Loader size={20} class="spin" /> {t('Abrindo…')}</p>
           {:else}
             <div class="card">
-              <h1>Abra um PDF para editar</h1>
-              <p>Preencha formulários, assine e escreva em qualquer PDF. O arquivo não sai do seu aparelho.</p>
-              <button class="primary big" onclick={() => fileInput.click()}><FileUp size={20} /> Abrir PDF</button>
-              <p class="hint">ou arraste o arquivo para cá</p>
+              <h1>{t('Abra um PDF para editar')}</h1>
+              <p>{t('Preencha formulários, assine e escreva em qualquer PDF. O arquivo não sai do seu aparelho.')}</p>
+              <button class="primary big" onclick={() => fileInput.click()}><FileUp size={20} /> {t('Abrir PDF')}</button>
+              <p class="hint">{t('ou arraste o arquivo para cá')}</p>
             </div>
             <DraftList onopen={(h) => ed.openDraft(h).then(() => (thumbsOpen = isWide && ed.pages > 1))} />
           {/if}
@@ -457,13 +457,13 @@
     </div>
 
     {#if showProps}
-      <aside class="props" aria-label="Formatação"><PropsPanel {ed} /></aside>
+      <aside class="props" aria-label={t('Formatação')}><PropsPanel {ed} /></aside>
     {/if}
   </div>
 
   <input bind:this={fileInput} type="file" accept="application/pdf,.pdf" hidden
     onchange={(e) => { openFile(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }}>
-  <input bind:this={imageInput} type="file" accept="image/*" hidden aria-label="Escolher imagem"
+  <input bind:this={imageInput} type="file" accept="image/*" hidden aria-label={t('Escolher imagem')}
     onchange={(e) => { addImageFile(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }}>
 </div>
 

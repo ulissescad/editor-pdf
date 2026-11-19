@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tn } from '../lib/i18n.svelte';
   // Organizar páginas (PLANO.md, item 2.3): reordenar, girar, excluir, duplicar e inserir páginas em branco.
   // Aceita mais de um PDF (as páginas dos novos arquivos entram no fim).
   import { onDestroy, onMount } from 'svelte';
@@ -29,13 +30,13 @@
   async function addFiles(list: File[] | FileList | null | undefined) {
     error = '';
     const { ok, rejected } = await readPdfFiles(list);
-    if (rejected.length) error = `Não é PDF: ${rejected.join(', ')}`;
+    if (rejected.length) error = t('Não é PDF: {list}', { list: rejected.join(', ') });
     await add(ok);
   }
 
   async function add(files: ToolFile[]) {
     if (!files.length) return;
-    busy = 'Abrindo…';
+    busy = t('Abrindo…');
     try {
       for (const f of files) {
         try {
@@ -60,7 +61,7 @@
 
   async function build() {
     error = '';
-    busy = 'Gerando o PDF…';
+    busy = t('Gerando o PDF…');
     try {
       const { Assembler } = await import('../pdf/pages');
       const asm = await Assembler.load(sources.map((s) => s.bytes));
@@ -68,11 +69,11 @@
         ? { blank: true as const, width: it.blank.width, height: it.blank.height }
         : { src: it.src, index: it.index, rotate: it.rotate }));
       const bytes = await asm.build(specs);
-      const name = `${baseName(sources[0].name)}-organizado.pdf`;
+      const name = `${baseName(sources[0].name)}-${t('organizado')}.pdf`;
       result = { name, bytes, mime: 'application/pdf' };
     } catch (err) {
       console.error(err);
-      error = (err as Error).name === 'EncryptedError' ? openError(err) : 'Não foi possível gerar o PDF. Tente novamente.';
+      error = (err as Error).name === 'EncryptedError' ? openError(err) : t('Não foi possível gerar o PDF. Tente novamente.');
     } finally {
       busy = '';
     }
@@ -88,23 +89,23 @@
 
 <ToolPage id="organizar" wide>
   {#if result}
-    <Result files={[result]} zipName="paginas.zip" summary="{items.length} página(s) no novo PDF."
+    <Result files={[result]} zipName="{t('paginas')}.zip" summary={tn(items.length, '{n} página no novo PDF.', '{n} páginas no novo PDF.')}
       onedit={(f) => requestOpen({ kind: 'file', bytes: f.bytes, name: f.name })} onreset={reset} />
   {:else if !sources.length}
-    <FileDrop label="Escolher PDF" multiple onfiles={addFiles} />
-    <p class="note">Depois de escolher, toque nas páginas para girar, excluir, duplicar ou mudar de lugar.</p>
+    <FileDrop label={t('Escolher PDF')} multiple onfiles={addFiles} />
+    <p class="note">{t('Depois de escolher, toque nas páginas para girar, excluir, duplicar ou mudar de lugar.')}</p>
   {:else}
     <div class="files">
       {#each sources as s, i (i)}<span class="chip">{sources.length > 1 ? `${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[i] ?? i + 1}: ` : ''}{s.name}</span>{/each}
-      <span class="chip muted">{items.length} página{items.length === 1 ? '' : 's'}</span>
+      <span class="chip muted">{tn(items.length, '{n} página', '{n} páginas')}</span>
     </div>
     <PageGrid bind:items {thumbs} sourceNames={sources.map((s) => s.name)} {sizeOf}>
       {#snippet extraActions()}
-        <button class="act-add" onclick={() => addInput?.click()}><FilePlus size={20} aria-hidden="true" /><span>Adicionar PDF</span></button>
-        <button class="button primary save" onclick={build} disabled={!!busy || !items.length}><Check size={20} aria-hidden="true" /> Gerar PDF</button>
+        <button class="act-add" onclick={() => addInput?.click()}><FilePlus size={20} aria-hidden="true" /><span>{t('Adicionar PDF')}</span></button>
+        <button class="button primary save" onclick={build} disabled={!!busy || !items.length}><Check size={20} aria-hidden="true" /> {t('Gerar PDF')}</button>
       {/snippet}
     </PageGrid>
-    <input bind:this={addInput} type="file" accept="application/pdf,.pdf" multiple hidden aria-label="Adicionar PDF"
+    <input bind:this={addInput} type="file" accept="application/pdf,.pdf" multiple hidden aria-label={t('Adicionar PDF')}
       onchange={(e) => { addFiles(e.currentTarget.files); e.currentTarget.value = ''; }}>
   {/if}
   {#if busy}<p class="notice info" role="status"><Loader size={18} class="spin" aria-hidden="true" /> {busy}</p>{/if}

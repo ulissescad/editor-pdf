@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from './lib/i18n.svelte';
   import { router } from './lib/router.svelte';
   import { pwa } from './lib/pwa.svelte';
   import Home from './routes/Home.svelte';
@@ -6,6 +7,7 @@
   import SignTool from './routes/SignTool.svelte';
   import Received from './routes/Received.svelte';
   import UpdateToast from './components/UpdateToast.svelte';
+  import LanguagePicker from './components/LanguagePicker.svelte';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import type { Component } from 'svelte';
 
@@ -36,25 +38,28 @@
 
 {#if router.current.name === 'editor'}
   {#await loadEditor()}
-    <p class="loading">Carregando o editor…</p>
+    <p class="loading">{t('Carregando o editor…')}</p>
   {:then { default: Editor }}
     <Editor />
   {:catch}
-    <p class="loading">Não foi possível carregar o editor. Recarregue a página.</p>
+    <p class="loading">{t('Não foi possível carregar o editor. Recarregue a página.')}</p>
   {/await}
 {:else}
-  <a class="skip" href="#conteudo">Pular para o conteúdo</a>
+  <a class="skip" href="#conteudo">{t('Pular para o conteúdo')}</a>
 
   <header class="site-header">
     <div class="wrap bar">
       <a class="brand" href="#/">
         <img src="logo.svg" alt="" width="32" height="32">
-        <span>Editor de PDF</span>
+        <span>{t('Editor de PDF')}</span>
       </a>
-      <span class="local" title="Os arquivos são processados só neste aparelho">
-        <ShieldCheck size={18} aria-hidden="true" />
-        <span>100% no seu aparelho</span>
-      </span>
+      <div class="right">
+        <span class="local" title={t('Os arquivos são processados só neste aparelho')}>
+          <ShieldCheck size={18} aria-hidden="true" />
+          <span>{t('100% no seu aparelho')}</span>
+        </span>
+        <LanguagePicker />
+      </div>
     </div>
   </header>
 
@@ -66,11 +71,11 @@
     {:else if toolView}
       {#key toolView}
         {#await toolView()}
-          <p class="loading">Carregando a ferramenta…</p>
+          <p class="loading">{t('Carregando a ferramenta…')}</p>
         {:then { default: View }}
           <View />
         {:catch}
-          <p class="loading">Não foi possível carregar a ferramenta. Recarregue a página.</p>
+          <p class="loading">{t('Não foi possível carregar a ferramenta. Recarregue a página.')}</p>
         {/await}
       {/key}
     {:else if router.current.name === 'tool'}
@@ -83,11 +88,11 @@
   <footer class="site-footer">
     <div class="wrap">
       <p>
-        Seus arquivos são processados só neste aparelho: nada é enviado para servidores, e o site não usa IA nem rastreadores.
+        {t('Seus arquivos são processados só neste aparelho: nada é enviado para servidores, e o site não usa IA nem rastreadores.')}
       </p>
       <p class="meta">
-        <span>Versão {version}</span>
-        {#if pwa.offlineReady}<span>· Pronto para usar offline</span>{/if}
+        <span>{t('Versão {v}', { v: version })}</span>
+        {#if pwa.offlineReady}<span>· {t('Pronto para usar offline')}</span>{/if}
       </p>
     </div>
   </footer>
@@ -105,7 +110,8 @@
     padding-top: env(safe-area-inset-top);
   }
   .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; }
-  .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 700; font-size: 18px; }
+  .right { display: flex; align-items: center; gap: 8px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 700; font-size: 18px; white-space: nowrap; min-width: 0; }
   .local { display: inline-flex; align-items: center; gap: 6px; color: var(--ok-text); background: var(--ok-bg); border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 600; }
   main { outline: none; padding-bottom: 32px; }
   .site-footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; padding: 16px 0 calc(16px + env(safe-area-inset-bottom)); }
@@ -114,5 +120,7 @@
   @media (max-width: 420px) {
     .local span { display: none; }
     .local { padding: 6px; }
+    .brand { font-size: 16px; gap: 8px; }
+    .right { gap: 6px; }
   }
 </style>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   import type { EditorState } from './state.svelte';
 
   let { ed, onpick }: { ed: EditorState; onpick?: () => void } = $props();
@@ -33,11 +34,11 @@
 
 <!-- Documento novo (ex.: depois de organizar as páginas): miniaturas desenhadas de novo -->
 {#key ed.doc}
-<ol class="thumbs" aria-label="Páginas">
+<ol class="thumbs" aria-label={t('Páginas')}>
   {#each { length: ed.pages } as _, i (i)}
     <li>
       <button class:current={ed.currentPage === i + 1} aria-current={ed.currentPage === i + 1 ? 'page' : undefined}
-        aria-label="Ir para a página {i + 1}" onclick={() => pick(i + 1)}>
+        aria-label={t('Ir para a página {n}', { n: i + 1 })} onclick={() => pick(i + 1)}>
         <canvas use:thumb={i + 1} width={WIDTH} height={Math.round(WIDTH * 1.41)}></canvas>
         <span>{i + 1}</span>
       </button>

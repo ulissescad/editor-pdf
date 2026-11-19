@@ -19,6 +19,7 @@ import { baselineFactor, cssFont, fontsReady, measureLines } from './measure';
 import { deleteDraft, getDraft, saveDraft, sha256 } from '../storage/drafts';
 import type { PageSpec } from '../pdf/plan';
 import { bigFileNote } from './session';
+import { t, tn } from '../lib/i18n.svelte';
 
 export type Tool = 'select' | 'text' | 'stamp' | 'field' | 'markup' | 'ink' | 'shape' | 'note';
 /** Ferramentas que desenham arrastando: no celular, um dedo desenha e dois dedos rolam. */
@@ -120,7 +121,7 @@ export class EditorState {
       if (reopened) {
         await this.#load(reopened.base, name, hash, reopened.project.objects, {}, reopened.assets);
         const n = reopened.project.objects.length;
-        this.#toast('info', `PDF criado neste editor: ${n} ${n === 1 ? 'objeto continua editável' : 'objetos continuam editáveis'}.`);
+        this.#toast('info', tn(n, 'PDF criado neste editor: {n} objeto continua editável.', 'PDF criado neste editor: {n} objetos continuam editáveis.'));
       } else {
         await this.#load(bytes, name, hash, [], {});
       }
@@ -132,11 +133,11 @@ export class EditorState {
       const e = err as { name?: string };
       this.status = e?.name === 'PasswordException'
         ? {
-          kind: 'err', text: 'Este PDF é protegido por senha.',
+          kind: 'err', text: t('Este PDF é protegido por senha.'),
           // Leva o arquivo para a ferramenta de desbloquear (sem sair da página)
-          action: { label: 'Desbloquear', run: () => { import('../tools/handoff').then((h) => h.sendToTool('desbloquear', [{ name, bytes }])); } },
+          action: { label: t('Desbloquear'), run: () => { import('../tools/handoff').then((h) => h.sendToTool('desbloquear', [{ name, bytes }])); } },
         }
-        : { kind: 'err', text: 'Não foi possível abrir este arquivo. Verifique se é um PDF válido.' };
+        : { kind: 'err', text: t('Não foi possível abrir este arquivo. Verifique se é um PDF válido.') };
     } finally {
       this.loading = false;
     }
@@ -146,7 +147,7 @@ export class EditorState {
     this.loading = true;
     try {
       const draft = await getDraft(hash);
-      if (!draft) { this.status = { kind: 'err', text: 'Rascunho não encontrado.' }; return; }
+      if (!draft) { this.status = { kind: 'err', text: t('Rascunho não encontrado.') }; return; }
       await this.#load(draft.bytes, draft.name, hash, draft.objects, draft.formValues, draft.images);
       this.restoredAt = draft.updatedAt;
     } finally {
@@ -180,8 +181,8 @@ export class EditorState {
     await closePdf(old);
     if (!this.fields.editable && !this.objects.length && !this.xfa) {
       this.status = {
-        kind: 'warn', text: 'Este PDF não tem campos de formulário. Use “Texto” para escrever ou detecte os campos automaticamente.',
-        action: { label: 'Detectar campos', run: () => this.detectFields() },
+        kind: 'warn', text: t('Este PDF não tem campos de formulário. Use “Texto” para escrever ou detecte os campos automaticamente.'),
+        action: { label: t('Detectar campos'), run: () => this.detectFields() },
       };
     }
   }
@@ -459,7 +460,7 @@ export class EditorState {
   /** Detecta campos nas páginas (PDF sem formulário) e cria os campos sugeridos. */
   async detectFields() {
     if (!this.doc) return;
-    this.busy = 'Procurando campos…';
+    this.busy = t('Procurando campos…');
     try {
       const { detectInDocument } = await import('./detect');
       const found = await detectInDocument(this.doc, $state.snapshot(this.objects) as Obj[]);
@@ -472,11 +473,11 @@ export class EditorState {
       this.commit();
       this.tool = 'field';
       this.status = found.length
-        ? { kind: 'ok', text: `${found.length} campo(s) encontrado(s). Toque num campo para preencher e exclua os que não servirem. No PDF baixado eles continuam preenchíveis.` }
-        : { kind: 'info', text: 'Nenhum campo encontrado. Com a ferramenta Campos, toque onde quer criar um.' };
+        ? { kind: 'ok', text: `${tn(found.length, '{n} campo encontrado.', '{n} campos encontrados.')} ${t('Toque num campo para preencher e exclua os que não servirem. No PDF baixado eles continuam preenchíveis.')}` }
+        : { kind: 'info', text: t('Nenhum campo encontrado. Com a ferramenta Campos, toque onde quer criar um.') };
     } catch (err) {
       console.error(err);
-      this.status = { kind: 'err', text: 'Não foi possível detectar os campos deste PDF.' };
+      this.status = { kind: 'err', text: t('Não foi possível detectar os campos deste PDF.') };
     } finally {
       this.busy = null;
     }
@@ -652,7 +653,7 @@ export class EditorState {
     if (!this.doc || !this.#base) return;
     if (this.editingId) this.stopEditing();
     if (this.selectedId) this.select(null);
-    this.busy = 'Reorganizando as páginas…';
+    this.busy = t('Reorganizando as páginas…');
     const prev = {
       base: this.#base, objects: $state.snapshot(this.objects) as Obj[], values: formValues(this.doc), images: this.#usedImages(),
     };
@@ -664,24 +665,24 @@ export class EditorState {
       this.saving = 'pending';
       await this.flushSave();
       this.status = {
-        kind: 'ok', text: `Páginas reorganizadas: agora são ${this.pages}.`,
-        action: { label: 'Desfazer', run: () => this.#restorePages(prev) },
+        kind: 'ok', text: tn(this.pages, 'Páginas reorganizadas: agora é {n} página.', 'Páginas reorganizadas: agora são {n} páginas.'),
+        action: { label: t('Desfazer'), run: () => this.#restorePages(prev) },
       };
     } catch (err) {
       console.error(err);
-      this.status = { kind: 'err', text: 'Não foi possível reorganizar as páginas deste PDF.' };
+      this.status = { kind: 'err', text: t('Não foi possível reorganizar as páginas deste PDF.') };
     } finally {
       this.busy = null;
     }
   }
 
   async #restorePages(prev: { base: Uint8Array; objects: Obj[]; values: Record<string, unknown>; images: ImageAsset[] }) {
-    this.busy = 'Desfazendo…';
+    this.busy = t('Desfazendo…');
     try {
       await this.#load(prev.base, this.fileName, this.#hash, prev.objects, prev.values, prev.images);
       this.saving = 'pending';
       await this.flushSave();
-      this.status = { kind: 'info', text: 'As páginas voltaram como estavam.' };
+      this.status = { kind: 'info', text: t('As páginas voltaram como estavam.') };
     } finally {
       this.busy = null;
     }
@@ -705,11 +706,15 @@ export class EditorState {
     const project = projectFor(items.map((i) => i.obj), this.images);
     const { loadFontFile } = await import('./fonts');
     const { bytes, replaced } = await stampObjects(withFields, items, project, { assets: this.images, loadFont: loadFontFile });
-    if (replaced) this.#toast('warn', `${replaced} caractere(s) não existem nas fontes do PDF e foram trocados por “?”.`);
+    if (replaced) this.#toast('warn', tn(replaced, '{n} caractere não existe nas fontes do PDF e foi trocado por “?”.', '{n} caracteres não existem nas fontes do PDF e foram trocados por “?”.'));
     return bytes;
   }
 
-  get outputName() { return this.fileName.replace(/\.pdf$/i, '').replace(/-editado$/i, '') + '-editado.pdf'; }
+  get outputName() {
+    const suffix = t('editado');
+    const base = this.fileName.replace(/\.pdf$/i, '');
+    return (base.endsWith(`-${suffix}`) ? base.slice(0, -suffix.length - 1) : base.replace(/-editado$/i, '')) + `-${suffix}.pdf`;
+  }
 }
 
 export { PAD };

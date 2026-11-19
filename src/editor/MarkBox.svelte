@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   import { watchLongPress } from './drag';
   import type { MarkupObj } from './model';
   import { HIGHLIGHT_OPACITY, MARKUP_NAMES, markupRects } from './draw';
@@ -36,7 +37,7 @@
 
 <!-- Pelo teclado: Delete apaga o selecionado (Editor.svelte) -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="mbox" class:selected data-id={obj.id} role="group" aria-label="{MARKUP_NAMES[obj.type]}{obj.text ? `: ${obj.text}` : ''}"
+<div class="mbox" class:selected data-id={obj.id} role="group" aria-label="{t(MARKUP_NAMES[obj.type])}{obj.text ? `: ${obj.text}` : ''}"
   style:left="{geo.left}px" style:top="{geo.top}px" style:width="{geo.width}px" style:height="{geo.height}px"
   onpointerdown={onPointerDown}>
   {#each geo.paint as r, i (i)}

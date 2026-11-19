@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   import { findTool } from '../lib/tools';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
@@ -7,22 +8,22 @@
 </script>
 
 <section class="wrap page">
-  <a class="back" href="#/"><ArrowLeft size={18} aria-hidden="true" /> Todas as ferramentas</a>
+  <a class="back" href="#/"><ArrowLeft size={18} aria-hidden="true" /> {t('Todas as ferramentas')}</a>
 
   {#if tool}
     {@const Icon = tool.icon}
     <div class="box">
       <span class="icon"><Icon size={32} aria-hidden="true" /></span>
-      <h1>{tool.name}</h1>
-      <p>{tool.description}</p>
-      <p class="soon">Esta ferramenta está em desenvolvimento e chega numa próxima versão do site.</p>
-      <a class="button primary" href="#/editor">Abrir um PDF no editor</a>
+      <h1>{t(tool.name)}</h1>
+      <p>{t(tool.description)}</p>
+      <p class="soon">{t('Esta ferramenta está em desenvolvimento e chega numa próxima versão do site.')}</p>
+      <a class="button primary" href="#/editor">{t('Abrir um PDF no editor')}</a>
     </div>
   {:else}
     <div class="box">
-      <h1>Ferramenta não encontrada</h1>
-      <p>O endereço pode estar incorreto.</p>
-      <a class="button" href="#/">Ver todas as ferramentas</a>
+      <h1>{t('Ferramenta não encontrada')}</h1>
+      <p>{t('O endereço pode estar incorreto.')}</p>
+      <a class="button" href="#/">{t('Ver todas as ferramentas')}</a>
     </div>
   {/if}
 </section>

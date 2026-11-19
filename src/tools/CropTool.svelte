@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tk, tn } from '../lib/i18n.svelte';
   // Recortar margens (PLANO.md, item 2.10): margens em mm (iguais ou por lado) ou automático, que corta o
   // espaço em branco em volta do conteúdo de cada página. A prévia mostra o que fica.
   import OneFileTool, { type Picked, type Progress, type RunResult } from './OneFileTool.svelte';
@@ -65,24 +66,24 @@
   async function pick(f: Picked) { doc = f.doc; at = 0; auto = new Map(); }
 
   async function run(f: Picked, progress: Progress): Promise<RunResult> {
-    if (selection && !selection.length) throw new ToolError('Escolha as páginas que serão recortadas.');
+    if (selection && !selection.length) throw new ToolError(t('Escolha as páginas que serão recortadas.'));
     if (mode === 'auto') {
       for (let i = 0; i < f.pages; i++) {
         if (!applies(i)) continue;
-        progress(`Medindo a página ${i + 1} de ${f.pages}…`);
+        progress(t('Medindo a página {i} de {n}…', { i: i + 1, n: f.pages }));
         await measure(f.doc!, i);
       }
     }
-    progress('Recortando…');
+    progress(t('Recortando…'));
     const { loadPdf } = await import('../pdf/pages');
     const pdf = await loadPdf(f.bytes);
     applyCrop(pdf, marginsFor);
     const bytes = await pdf.save({ useObjectStreams: true, updateFieldAppearances: false });
     const n = selection?.length ?? f.pages;
     return {
-      files: [{ name: `${baseName(f.name)}-recortado.pdf`, bytes, mime: 'application/pdf' }],
-      summary: `${n} página${n === 1 ? '' : 's'} recortada${n === 1 ? '' : 's'}.`,
-      note: 'O recorte esconde as bordas em qualquer leitor, mas o conteúdo de fora continua dentro do arquivo. Para apagar informação de verdade, use “Tarjar informações”.',
+      files: [{ name: `${baseName(f.name)}-${t('recortado')}.pdf`, bytes, mime: 'application/pdf' }],
+      summary: tn(n, '{n} página recortada.', '{n} páginas recortadas.'),
+      note: t('O recorte esconde as bordas em qualquer leitor, mas o conteúdo de fora continua dentro do arquivo. Para apagar informação de verdade, use “Tarjar informações”.'),
     };
   }
 
@@ -98,28 +99,28 @@
   }
 </script>
 
-<OneFileTool id="recortar" action="Recortar páginas" icon={Crop} {run} canRun={numbersOk} onpick={pick}
+<OneFileTool id="recortar" action={t('Recortar páginas')} icon={Crop} {run} canRun={numbersOk} onpick={pick}
   onclear={() => { doc = null; auto = new Map(); }} wide>
   {#snippet options(f)}
     <div class="row">
-      <span class="label" id="cm-l">Como recortar</span>
+      <span class="label" id="cm-l">{t('Como recortar')}</span>
       <fieldset class="seg" aria-labelledby="cm-l">
-        <label><input type="radio" bind:group={mode} value="manual"> Margens fixas</label>
-        <label><input type="radio" bind:group={mode} value="auto"> Automático (tira o branco)</label>
+        <label><input type="radio" bind:group={mode} value="manual"> {t('Margens fixas')}</label>
+        <label><input type="radio" bind:group={mode} value="auto"> {t('Automático (tira o branco)')}</label>
       </fieldset>
     </div>
     {#if mode === 'manual'}
-      <label class="check"><input type="checkbox" bind:checked={same}> Mesma medida nos 4 lados</label>
+      <label class="check"><input type="checkbox" bind:checked={same}> {t('Mesma medida nos 4 lados')}</label>
       {#if same}
         <div class="row">
-          <label class="label" for="c-all">Margem a cortar (mm)</label>
+          <label class="label" for="c-all">{t('Margem a cortar (mm)')}</label>
           <input id="c-all" type="number" min="0" step="1" bind:value={all}>
         </div>
       {:else}
         <div class="sides">
-          {#each [['top', 'Em cima'], ['bottom', 'Embaixo'], ['left', 'Esquerda'], ['right', 'Direita']] as [k, label] (k)}
+          {#each [['top', tk('Em cima')], ['bottom', tk('Embaixo')], ['left', tk('Esquerda')], ['right', tk('Direita')]] as [k, label] (k)}
             <div class="row">
-              <label class="label" for="c-{k}">{label} (mm)</label>
+              <label class="label" for="c-{k}">{t(label)} (mm)</label>
               <input id="c-{k}" type="number" min="0" step="1" bind:value={sides[k as keyof typeof sides]}>
             </div>
           {/each}
@@ -127,17 +128,17 @@
       {/if}
     {:else}
       <div class="row">
-        <label class="label" for="c-pad">Folga em volta do conteúdo (mm)</label>
+        <label class="label" for="c-pad">{t('Folga em volta do conteúdo (mm)')}</label>
         <input id="c-pad" type="number" min="0" step="1" bind:value={pad}>
-        <p class="hint">Cada página é recortada no próprio conteúdo. Funciona também com páginas digitalizadas (fundo branco).</p>
+        <p class="hint">{t('Cada página é recortada no próprio conteúdo. Funciona também com páginas digitalizadas (fundo branco).')}</p>
       </div>
     {/if}
     <PageChoice pages={f.pages} bind:selection />
   {/snippet}
   {#snippet after(f)}
     <div class="panel prev">
-      <h2>Prévia</h2>
-      <PagePreview doc={f.doc} index={at} width={460} label="Página {at + 1}">
+      <h2>{t('Prévia')}</h2>
+      <PagePreview doc={f.doc} index={at} width={460} label={t('Página {n}', { n: at + 1 })}>
         {#snippet overlay(size)}
           {@const k = keep(size)}
           {#if k}
@@ -145,8 +146,8 @@
           {/if}
         {/snippet}
       </PagePreview>
-      {#if measuring}<p class="hint center">Medindo o conteúdo…</p>{/if}
-      {#if !applies(at)}<p class="hint center">Esta página não será recortada.</p>{/if}
+      {#if measuring}<p class="hint center">{t('Medindo o conteúdo…')}</p>{/if}
+      {#if !applies(at)}<p class="hint center">{t('Esta página não será recortada.')}</p>{/if}
       {#if f.pages > 1}<Pager bind:index={at} pages={f.pages} />{/if}
     </div>
   {/snippet}

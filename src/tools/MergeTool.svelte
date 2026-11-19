@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tn } from '../lib/i18n.svelte';
   // Juntar PDFs (PLANO.md, item 2.1): vários arquivos em um, na ordem escolhida.
   import { onDestroy, onMount } from 'svelte';
   import ToolPage from './ToolPage.svelte';
@@ -36,11 +37,11 @@
   async function addFiles(list: File[]) {
     error = '';
     const { ok, rejected } = await readPdfFiles(list);
-    await addPdfs(ok, rejected.length ? [`Não é PDF: ${rejected.join(', ')}`] : []);
+    await addPdfs(ok, rejected.length ? [t('Não é PDF: {list}', { list: rejected.join(', ') })] : []);
   }
 
   async function addPdfs(ok: ToolFile[], problems: string[] = []) {
-    busy = 'Abrindo…';
+    busy = t('Abrindo…');
     try {
       for (const f of ok) {
         try {
@@ -62,14 +63,14 @@
 
   async function merge() {
     error = '';
-    busy = 'Juntando…';
+    busy = t('Juntando…');
     try {
       const { assemble } = await import('../pdf/pages');
       const bytes = await assemble(entries.map((e) => e.bytes), entries.flatMap((e, i) => allPages(i, e.pages)));
-      result = { name: `${baseName(entries[0].name)}-junto.pdf`, bytes, mime: 'application/pdf' };
+      result = { name: `${baseName(entries[0].name)}-${t('junto')}.pdf`, bytes, mime: 'application/pdf' };
     } catch (err) {
       console.error(err);
-      error = (err as Error).name === 'EncryptedError' ? openError(err) : 'Não foi possível juntar os arquivos. Tente novamente.';
+      error = (err as Error).name === 'EncryptedError' ? openError(err) : t('Não foi possível juntar os arquivos. Tente novamente.');
     } finally {
       busy = '';
     }
@@ -84,36 +85,36 @@
 
 <ToolPage id="juntar">
   {#if result}
-    <Result files={[result]} zipName="junto.zip" summary="{entries.length} arquivos, {totalPages} páginas."
+    <Result files={[result]} zipName="{t('junto')}.zip" summary={t('{files} arquivos, {pages} páginas.', { files: entries.length, pages: totalPages })}
       onedit={(f) => requestOpen({ kind: 'file', bytes: f.bytes, name: f.name })}
       onorganize={(f) => sendToTool('organizar', [f])} onreset={reset} />
   {:else}
     {#if entries.length}
-      <ol class="list" aria-label="Arquivos, na ordem em que serão juntados"
+      <ol class="list" aria-label={t('Arquivos, na ordem em que serão juntados')}
         use:sortable={{ item: '.entry', handle: '.grip', onmove: move }}>
         {#each entries as e, i (e.key)}
           <li class="entry">
-            <span class="grip" aria-hidden="true" title="Arraste para mudar a ordem"><Grip size={20} /></span>
+            <span class="grip" aria-hidden="true" title={t('Arraste para mudar a ordem')}><Grip size={20} /></span>
             <canvas use:thumb={{ thumbs, src: e.src, index: 0, width: 56 }} width="56" height="79"></canvas>
             <span class="info">
               <span class="name">{i + 1}. {e.name}</span>
-              <span class="meta">{e.pages} página{e.pages === 1 ? '' : 's'} · {formatSize(e.bytes.length)}</span>
+              <span class="meta">{tn(e.pages, '{n} página', '{n} páginas')} · {formatSize(e.bytes.length)}</span>
             </span>
             <span class="btns">
-              <button class="icon" aria-label="Subir {e.name}" disabled={i === 0} onclick={() => move(i, i - 1)}><ArrowUp size={20} /></button>
-              <button class="icon" aria-label="Descer {e.name}" disabled={i === entries.length - 1} onclick={() => move(i, i + 1)}><ArrowDown size={20} /></button>
-              <button class="icon danger" aria-label="Remover {e.name}" onclick={() => remove(e.key)}><Trash size={20} /></button>
+              <button class="icon" aria-label={t('Subir {name}', { name: e.name })} disabled={i === 0} onclick={() => move(i, i - 1)}><ArrowUp size={20} /></button>
+              <button class="icon" aria-label={t('Descer {name}', { name: e.name })} disabled={i === entries.length - 1} onclick={() => move(i, i + 1)}><ArrowDown size={20} /></button>
+              <button class="icon danger" aria-label={t('Remover {name}', { name: e.name })} onclick={() => remove(e.key)}><Trash size={20} /></button>
             </span>
           </li>
         {/each}
       </ol>
     {/if}
-    <FileDrop label={entries.length ? 'Adicionar PDFs' : 'Escolher PDFs'} multiple compact={entries.length > 0} onfiles={addFiles} />
-    {#if entries.length === 1}<p class="note">Adicione pelo menos mais um PDF.</p>{/if}
+    <FileDrop label={entries.length ? t('Adicionar PDFs') : t('Escolher PDFs')} multiple compact={entries.length > 0} onfiles={addFiles} />
+    {#if entries.length === 1}<p class="note">{t('Adicione pelo menos mais um PDF.')}</p>{/if}
     {#if entries.length > 1}
       <div class="go">
-        <button class="button primary" onclick={merge} disabled={!!busy}><Merge size={20} aria-hidden="true" /> Juntar {entries.length} PDFs</button>
-        <span class="note">{totalPages} páginas no total</span>
+        <button class="button primary" onclick={merge} disabled={!!busy}><Merge size={20} aria-hidden="true" /> {t('Juntar {n} PDFs', { n: entries.length })}</button>
+        <span class="note">{tn(totalPages, '{n} página no total', '{n} páginas no total')}</span>
       </div>
     {/if}
   {/if}

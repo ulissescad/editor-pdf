@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tn } from '../lib/i18n.svelte';
   // Comparar PDFs (PLANO.md, item 2.15): duas versões de um documento → o que saiu e o que entrou no texto,
   // marcado nas páginas. Compara só o texto: imagens e formatação não entram.
   import { onDestroy, tick } from 'svelte';
@@ -44,9 +45,9 @@
   async function choose(slot: Slot, list: File[]) {
     error = '';
     const { ok } = await readPdfFiles(list);
-    if (!ok.length) { error = 'Escolha um arquivo .pdf.'; return; }
+    if (!ok.length) { error = t('Escolha um arquivo .pdf.'); return; }
     const f = ok[0];
-    busy = 'Abrindo…';
+    busy = t('Abrindo…');
     try {
       const side = { ...f, doc: await openPdf(f.bytes) };
       await closePdf((slot === 'a' ? a : b)?.doc);
@@ -68,22 +69,22 @@
       const [{ readDocText, comparePdfs }, { canvasMeasure }] = await Promise.all([
         import('../pdf/compare'), import('../editor/textsel'),
       ]);
-      busy = 'Lendo a versão antiga…';
-      const ta = await readDocText(a.doc, (n, t) => { busy = `Lendo a versão antiga: página ${n} de ${t}…`; });
-      const tb = await readDocText(b.doc, (n, t) => { busy = `Lendo a versão nova: página ${n} de ${t}…`; });
+      busy = t('Lendo a versão antiga…');
+      const ta = await readDocText(a.doc, (n, total) => { busy = t('Lendo a versão antiga: página {i} de {n}…', { i: n, n: total }); });
+      const tb = await readDocText(b.doc, (n, total) => { busy = t('Lendo a versão nova: página {i} de {n}…', { i: n, n: total }); });
       const empty = !ta.words.length ? a : !tb.words.length ? b : null;
       if (empty) {
-        error = `“${empty.name}” não tem texto para comparar (provavelmente é um documento digitalizado).`;
+        error = t('“{name}” não tem texto para comparar (provavelmente é um documento digitalizado).', { name: empty.name });
         return;
       }
-      busy = 'Comparando…';
+      busy = t('Comparando…');
       await new Promise((r) => setTimeout(r, 30));
       outcome = comparePdfs(ta, tb, canvasMeasure(), { ignoreCase });
       listed = PAGE_OF_LIST;
       go(0);
     } catch (err) {
       console.error(err);
-      error = 'Não foi possível comparar estes arquivos.';
+      error = t('Não foi possível comparar estes arquivos.');
     } finally {
       busy = '';
     }
@@ -101,21 +102,20 @@
     const side = slot === 'a' ? a : b;
     if (!side || !outcome) return;
     error = '';
-    busy = 'Gerando o PDF marcado…';
+    busy = t('Gerando o PDF marcado…');
     try {
       const { markPdf, REMOVED_RGB, ADDED_RGB } = await import('../pdf/compare');
       const bytes = await markPdf(side.bytes, slot === 'a' ? outcome.marksA : outcome.marksB, slot === 'a' ? REMOVED_RGB : ADDED_RGB);
-      downloadPdf(bytes, `${baseName(side.name)}-${slot === 'a' ? 'antiga' : 'nova'}-marcada.pdf`);
+      downloadPdf(bytes, `${baseName(side.name)}-${slot === 'a' ? t('antiga-marcada') : t('nova-marcada')}.pdf`);
     } catch (err) {
       console.error(err);
-      error = 'Não foi possível gerar o PDF marcado.';
+      error = t('Não foi possível gerar o PDF marcado.');
     } finally {
       busy = '';
     }
   }
 
   const again = () => { outcome = null; error = ''; };
-  const plural = (n: number, one: string, many: string) => `${n.toLocaleString('pt-BR')} ${n === 1 ? one : many}`;
   const pct = (r: VRect, s: { width: number; height: number }) =>
     `left:${(r.x / s.width) * 100}%;top:${(r.y / s.height) * 100}%;width:${(r.w / s.width) * 100}%;height:${(r.h / s.height) * 100}%`;
 </script>
@@ -123,35 +123,35 @@
 <ToolPage id="comparar" wide>
   {#if !outcome}
     <div class="slots">
-      {@render slot('a', 'Versão antiga', a)}
-      <button type="button" class="button swap" onclick={swap} disabled={!a && !b} aria-label="Trocar as versões de lugar">
+      {@render slot('a', t('Versão antiga'), a)}
+      <button type="button" class="button swap" onclick={swap} disabled={!a && !b} aria-label={t('Trocar as versões de lugar')}>
         <ArrowLeftRight size={18} aria-hidden="true" />
       </button>
-      {@render slot('b', 'Versão nova', b)}
+      {@render slot('b', t('Versão nova'), b)}
     </div>
     <div class="panel opts">
-      <label class="check"><input type="checkbox" bind:checked={ignoreCase}> Ignorar maiúsculas e acentos</label>
-      <p class="hint">Compara só o texto. Mudanças em imagens, cores ou posição não aparecem, e PDFs digitalizados não têm texto para comparar.</p>
+      <label class="check"><input type="checkbox" bind:checked={ignoreCase}> {t('Ignorar maiúsculas e acentos')}</label>
+      <p class="hint">{t('Compara só o texto. Mudanças em imagens, cores ou posição não aparecem, e PDFs digitalizados não têm texto para comparar.')}</p>
       <div class="go">
-        <button class="button primary" onclick={compare} disabled={!a || !b || !!busy}><GitCompare size={20} aria-hidden="true" /> Comparar</button>
+        <button class="button primary" onclick={compare} disabled={!a || !b || !!busy}><GitCompare size={20} aria-hidden="true" /> {t('Comparar')}</button>
       </div>
     </div>
   {:else}
     {@const n = outcome.changes.length}
     <div class="panel summary" role="status">
       {#if n}
-        <p><strong>{plural(n, 'diferença', 'diferenças')}</strong> ·
-          <span class="out">{plural(outcome.removedWords, 'item removido', 'itens removidos')}</span> ·
-          <span class="in">{plural(outcome.addedWords, 'item adicionado', 'itens adicionados')}</span></p>
+        <p><strong>{tn(n, '{n} diferença', '{n} diferenças')}</strong> ·
+          <span class="out">{tn(outcome.removedWords, '{n} item removido', '{n} itens removidos')}</span> ·
+          <span class="in">{tn(outcome.addedWords, '{n} item adicionado', '{n} itens adicionados')}</span></p>
       {:else}
-        <p class="same"><strong>Nenhuma diferença no texto.</strong> Imagens e formatação não são comparadas.</p>
+        <p class="same"><strong>{t('Nenhuma diferença no texto.')}</strong> {t('Imagens e formatação não são comparadas.')}</p>
       {/if}
       <div class="go">
         {#if n}
-          <button class="button" onclick={() => download('b')} disabled={!!busy}><Download size={20} aria-hidden="true" /> Baixar versão nova marcada</button>
-          <button class="button" onclick={() => download('a')} disabled={!!busy}><Download size={20} aria-hidden="true" /> Baixar versão antiga marcada</button>
+          <button class="button" onclick={() => download('b')} disabled={!!busy}><Download size={20} aria-hidden="true" /> {t('Baixar versão nova marcada')}</button>
+          <button class="button" onclick={() => download('a')} disabled={!!busy}><Download size={20} aria-hidden="true" /> {t('Baixar versão antiga marcada')}</button>
         {/if}
-        <button class="button" onclick={again}><RotateCcw size={20} aria-hidden="true" /> Comparar outros</button>
+        <button class="button" onclick={again}><RotateCcw size={20} aria-hidden="true" /> {t('Comparar outros')}</button>
       </div>
     </div>
 
@@ -159,25 +159,25 @@
       <div class="layout">
         <div class="viewer" bind:this={viewer}>
           <div class="pager">
-            <button type="button" class="button small" aria-label="Diferença anterior" disabled={at === 0} onclick={() => go(at - 1)}><ChevronLeft size={20} aria-hidden="true" /></button>
-            <span aria-live="polite">Diferença {at + 1} de {n}</span>
-            <button type="button" class="button small" aria-label="Próxima diferença" disabled={at === n - 1} onclick={() => go(at + 1)}><ChevronRight size={20} aria-hidden="true" /></button>
+            <button type="button" class="button small" aria-label={t('Diferença anterior')} disabled={at === 0} onclick={() => go(at - 1)}><ChevronLeft size={20} aria-hidden="true" /></button>
+            <span aria-live="polite">{t('Diferença {i} de {n}', { i: at + 1, n })}</span>
+            <button type="button" class="button small" aria-label={t('Próxima diferença')} disabled={at === n - 1} onclick={() => go(at + 1)}><ChevronRight size={20} aria-hidden="true" /></button>
           </div>
-          <fieldset class="seg which" aria-label="Versão mostrada">
-            <label><input type="radio" bind:group={showing} value="a"> Versão antiga</label>
-            <label><input type="radio" bind:group={showing} value="b"> Versão nova</label>
+          <fieldset class="seg which" aria-label={t('Versão mostrada')}>
+            <label><input type="radio" bind:group={showing} value="a"> {t('Versão antiga')}</label>
+            <label><input type="radio" bind:group={showing} value="b"> {t('Versão nova')}</label>
           </fieldset>
           <div class="pages">
-            {@render side('a', 'Versão antiga', a.doc, current.pageA, outcome.marksA.get(current.pageA) ?? [])}
-            {@render side('b', 'Versão nova', b.doc, current.pageB, outcome.marksB.get(current.pageB) ?? [])}
+            {@render side('a', t('Versão antiga'), a.doc, current.pageA, outcome.marksA.get(current.pageA) ?? [])}
+            {@render side('b', t('Versão nova'), b.doc, current.pageB, outcome.marksB.get(current.pageB) ?? [])}
           </div>
         </div>
 
-        <ol class="changes" aria-label="Lista de diferenças">
+        <ol class="changes" aria-label={t('Lista de diferenças')}>
           {#each outcome.changes.slice(0, listed) as c, i (i)}
             <li>
               <button type="button" class="change" class:on={i === at} aria-current={i === at ? 'true' : undefined} onclick={() => go(i, true)}>
-                <span class="where">{i + 1} · página {c.pageA + 1}{c.pageA !== c.pageB ? ` → ${c.pageB + 1}` : ''}</span>
+                <span class="where">{i + 1} · {t('página {n}', { n: c.pageA + 1 })}{c.pageA !== c.pageB ? ` → ${c.pageB + 1}` : ''}</span>
                 <span class="text">
                   {#if c.before}<span class="ctx">…{c.before} </span>{/if}
                   {#if c.removed}<del>{c.removed}</del>{/if}
@@ -189,7 +189,7 @@
             </li>
           {/each}
           {#if n > listed}
-            <li><button type="button" class="button" onclick={() => (listed += PAGE_OF_LIST)}>Mostrar mais ({n - listed})</button></li>
+            <li><button type="button" class="button" onclick={() => (listed += PAGE_OF_LIST)}>{t('Mostrar mais ({n})', { n: n - listed })}</button></li>
           {/if}
         </ol>
       </div>
@@ -203,16 +203,16 @@
   <section class="panel slot" aria-label={title}>
     <h2>{title}</h2>
     {#if f}
-      <p class="file"><strong>{f.name}</strong> · {plural(f.doc.numPages, 'página', 'páginas')} · {formatSize(f.bytes.length)}</p>
+      <p class="file"><strong>{f.name}</strong> · {tn(f.doc.numPages, '{n} página', '{n} páginas')} · {formatSize(f.bytes.length)}</p>
     {/if}
-    <FileDrop label={f ? 'Trocar arquivo' : `Escolher ${title.toLowerCase()}`} compact={!!f} hint="" onfiles={(l) => choose(id, l)} />
+    <FileDrop label={f ? t('Trocar arquivo') : t('Escolher: {what}', { what: title })} compact={!!f} hint="" onfiles={(l) => choose(id, l)} />
   </section>
 {/snippet}
 
 {#snippet side(id: Slot, title: string, doc: PDFDocumentProxy, index: number, marks: Mark[])}
   <figure class="page" class:hide={showing !== id}>
-    <figcaption>{title} · página {index + 1}</figcaption>
-    <PagePreview {doc} {index} width={520} maxVh={76} label="{title}, página {index + 1}">
+    <figcaption>{title} · {t('página {n}', { n: index + 1 })}</figcaption>
+    <PagePreview {doc} {index} width={520} maxVh={76} label="{title}, {t('página {n}', { n: index + 1 })}">
       {#snippet overlay(size)}
         {#each marks as m, k (k)}
           <span class="mark {id}" class:now={m.change === at} style={pct(m.view, size)}></span>

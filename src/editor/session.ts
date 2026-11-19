@@ -1,4 +1,6 @@
 // O que a página inicial pede para o editor abrir (mesma aplicação, sem sair do navegador).
+import { t } from '../lib/i18n.svelte';
+
 export type PendingOpen =
   | { kind: 'file'; bytes: Uint8Array; name: string; then?: 'sign' }
   | { kind: 'draft'; hash: string; then?: 'sign' };
@@ -25,7 +27,7 @@ const isTouch = () => typeof matchMedia === 'function' && matchMedia('(pointer: 
 export function bigFileNote(size: number, touch = isTouch()): string | null {
   if (size < BIG_FILE || !touch) return null;
   const mb = Math.round(size / (1024 * 1024));
-  return `Arquivo grande (${mb} MB): neste aparelho ele pode ficar lento ou fazer a página recarregar. Se acontecer, use um computador.`;
+  return t('Arquivo grande ({mb} MB): neste aparelho ele pode ficar lento ou fazer a página recarregar. Se acontecer, use um computador.', { mb });
 }
 
 export const isPdfFile = (f: File) => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name);

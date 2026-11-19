@@ -9,6 +9,7 @@
 </script>
 
 <script lang="ts">
+  import { t, tn } from '../lib/i18n.svelte';
   // Moldura das ferramentas de um arquivo só (M5): escolher o PDF → opções → resultado.
   // Cuida de abrir o arquivo, do aviso de PDF com senha (com atalho para “Desbloquear”), do progresso,
   // dos erros e da tela de resultado. Cada ferramenta só descreve as opções e o que fazer.
@@ -57,14 +58,14 @@
   async function choose(list: File[]) {
     error = '';
     const { ok } = await readPdfFiles(list);
-    if (!ok.length) { error = 'Escolha um arquivo .pdf.'; return; }
+    if (!ok.length) { error = t('Escolha um arquivo .pdf.'); return; }
     await load(ok[0]);
   }
 
   async function load(f: ToolFile) {
     error = '';
     locked = null;
-    busy = 'Abrindo…';
+    busy = t('Abrindo…');
     try {
       await clear();
       let doc: PDFDocumentProxy | null = null;
@@ -74,7 +75,7 @@
         } catch (err) {
           if ((err as { name?: string }).name === 'PasswordException') {
             locked = f;
-            error = `“${f.name}” é protegido por senha. Desbloqueie o arquivo primeiro.`;
+            error = t('“{name}” é protegido por senha. Desbloqueie o arquivo primeiro.', { name: f.name });
             return;
           }
           throw err;
@@ -93,7 +94,7 @@
       big = bigFileNote(f.bytes.length);
     } catch (err) {
       console.error(err);
-      error = `Não foi possível abrir “${f.name}”. Verifique se é um PDF válido.`;
+      error = t('Não foi possível abrir “{name}”. Verifique se é um PDF válido.', { name: f.name });
     } finally {
       busy = '';
     }
@@ -102,14 +103,14 @@
   async function go() {
     if (!file || !canRun) return;
     error = '';
-    busy = 'Processando…';
+    busy = t('Processando…');
     try {
       result = await run(file, (text) => { busy = text; });
     } catch (err) {
       console.error(err);
       error = (err as Error).message && (err as Error).name === 'ToolError'
         ? (err as Error).message
-        : 'Não foi possível concluir. Tente novamente.';
+        : t('Não foi possível concluir. Tente novamente.');
     } finally {
       busy = '';
     }
@@ -140,14 +141,14 @@
       {/snippet}
     </Result>
   {:else if !file}
-    <FileDrop label="Escolher PDF" onfiles={choose} />
+    <FileDrop label={t('Escolher PDF')} onfiles={choose} />
   {:else}
     <!-- No computador, opções e prévia lado a lado -->
     <div class="work" class:side={!!after}>
       <!-- Formulário: Enter num campo (ex.: senha) aciona o botão principal -->
       <form class="panel" onsubmit={(e) => { e.preventDefault(); go(); }}>
-        <p class="file"><strong>{file.name}</strong>{#if file.pages} · {file.pages} página{file.pages === 1 ? '' : 's'}{/if} · {formatSize(file.bytes.length)}
-          <button type="button" class="link" onclick={reset}>Trocar arquivo</button></p>
+        <p class="file"><strong>{file.name}</strong>{#if file.pages} · {tn(file.pages, '{n} página', '{n} páginas')}{/if} · {formatSize(file.bytes.length)}
+          <button type="button" class="link" onclick={reset}>{t('Trocar arquivo')}</button></p>
         {#if options}<div class="options">{@render options(file)}</div>{/if}
         <div class="go">
           <button type="submit" class="button primary" disabled={!!busy || !canRun}>
@@ -163,7 +164,7 @@
   {#if locked}
     {@const f = locked}
     <div class="go">
-      <button class="button primary" onclick={() => sendToTool('desbloquear', [f])}><LockOpen size={20} aria-hidden="true" /> Desbloquear este PDF</button>
+      <button class="button primary" onclick={() => sendToTool('desbloquear', [f])}><LockOpen size={20} aria-hidden="true" /> {t('Desbloquear este PDF')}</button>
     </div>
   {/if}
 </ToolPage>

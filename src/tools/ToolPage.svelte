@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   // Moldura comum das ferramentas: voltar, ícone, título, descrição e o conteúdo da ferramenta.
   import type { Snippet } from 'svelte';
   import { findTool } from '../lib/tools';
@@ -9,14 +10,14 @@
 </script>
 
 <section class="wrap page" class:wide>
-  <a class="back" href="#/"><ArrowLeft size={18} aria-hidden="true" /> Todas as ferramentas</a>
+  <a class="back" href="#/"><ArrowLeft size={18} aria-hidden="true" /> {t('Todas as ferramentas')}</a>
   <header class="head">
     {#if tool}
       {@const Icon = tool.icon}
       <span class="icon"><Icon size={26} aria-hidden="true" /></span>
       <div>
-        <h1>{tool.name}</h1>
-        <p>{tool.description}</p>
+        <h1>{t(tool.name)}</h1>
+        <p>{t(tool.description)}</p>
       </div>
     {/if}
   </header>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tn } from '../lib/i18n.svelte';
   // Resultado de uma ferramenta: baixar (um arquivo ou um ZIP), compartilhar e continuar no editor.
   import { canShareFiles, downloadBytes, shareFiles } from '../editor/output';
   import { formatSize } from './thumbs';
@@ -37,7 +38,7 @@
     error = '';
     try { await shareFiles(asFiles); } catch (err) {
       console.error(err);
-      error = 'Não foi possível compartilhar. Use “Baixar”.';
+      error = t('Não foi possível compartilhar. Use “Baixar”.');
     }
   }
 
@@ -52,23 +53,23 @@
 </script>
 
 <div class="panel result" role="status">
-  <p class="done"><CheckCircle size={22} aria-hidden="true" /> <strong>Pronto!</strong> {summary ?? ''}</p>
+  <p class="done"><CheckCircle size={22} aria-hidden="true" /> <strong>{t('Pronto!')}</strong> {summary ?? ''}</p>
   <ul class="files">
     {#each files.slice(0, 8) as f (f.name)}
       <li><span class="name">{f.name}</span><span class="size">{formatSize(f.bytes.length)}</span></li>
     {/each}
-    {#if files.length > 8}<li class="more">e mais {files.length - 8} arquivo(s)</li>{/if}
+    {#if files.length > 8}<li class="more">{tn(files.length - 8, 'e mais {n} arquivo', 'e mais {n} arquivos')}</li>{/if}
   </ul>
-  {#if files.length > 1}<p class="total">{files.length} arquivos · {formatSize(total)} no total</p>{/if}
+  {#if files.length > 1}<p class="total">{t('{n} arquivos · {size} no total', { n: files.length, size: formatSize(total) })}</p>{/if}
   {@render extra?.()}
   <div class="go">
     <button class="button primary" onclick={download}>
-      <Download size={20} aria-hidden="true" /> {single ? 'Baixar' : 'Baixar tudo (ZIP)'}
+      <Download size={20} aria-hidden="true" /> {single ? t('Baixar') : t('Baixar tudo (ZIP)')}
     </button>
-    {#if canShare}<button class="button" onclick={share}><Share size={20} aria-hidden="true" /> Compartilhar</button>{/if}
-    {#if single && onedit}<button class="button" onclick={() => onedit(single)}><FilePen size={20} aria-hidden="true" /> Abrir no editor</button>{/if}
-    {#if single && onorganize}<button class="button" onclick={() => onorganize(single)}><LayoutGrid size={20} aria-hidden="true" /> Organizar páginas</button>{/if}
-    <button class="button" onclick={onreset}><RotateCcw size={20} aria-hidden="true" /> Recomeçar</button>
+    {#if canShare}<button class="button" onclick={share}><Share size={20} aria-hidden="true" /> {t('Compartilhar')}</button>{/if}
+    {#if single && onedit}<button class="button" onclick={() => onedit(single)}><FilePen size={20} aria-hidden="true" /> {t('Abrir no editor')}</button>{/if}
+    {#if single && onorganize}<button class="button" onclick={() => onorganize(single)}><LayoutGrid size={20} aria-hidden="true" /> {t('Organizar páginas')}</button>{/if}
+    <button class="button" onclick={onreset}><RotateCcw size={20} aria-hidden="true" /> {t('Recomeçar')}</button>
   </div>
   {#if error}<p class="notice err" role="alert">{error}</p>{/if}
 </div>

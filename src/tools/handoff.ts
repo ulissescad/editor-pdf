@@ -1,6 +1,7 @@
 // Passar arquivos de uma ferramenta para outra (ex.: “Juntar” → “Organizar”) sem sair da página.
 // Os bytes ficam só na memória desta aba.
 import { hrefFor } from '../lib/routes';
+import { t } from '../lib/i18n.svelte';
 
 export interface ToolFile { name: string; bytes: Uint8Array }
 /** Arquivo gerado por uma ferramenta. */
@@ -37,11 +38,14 @@ export async function readPdfFiles(list: FileList | File[] | null | undefined) {
 /** Mensagem amigável para falhas ao abrir PDFs. */
 export function openError(err: unknown, name?: string): string {
   const e = err as { name?: string };
-  const which = name ? `“${name}”` : 'Este arquivo';
   if (e?.name === 'EncryptedError' || e?.name === 'PasswordException') {
-    return `${which} é protegido por senha. Use antes a ferramenta “Desbloquear PDF”.`;
+    return name
+      ? t('“{name}” é protegido por senha. Use antes a ferramenta “Desbloquear PDF”.', { name })
+      : t('Este arquivo é protegido por senha. Use antes a ferramenta “Desbloquear PDF”.');
   }
-  return `Não foi possível abrir ${name ? which : 'este arquivo'}. Verifique se é um PDF válido.`;
+  return name
+    ? t('Não foi possível abrir “{name}”. Verifique se é um PDF válido.', { name })
+    : t('Não foi possível abrir este arquivo. Verifique se é um PDF válido.');
 }
 
 /** Erro com mensagem pronta para mostrar (as ferramentas mostram a mensagem como está). */

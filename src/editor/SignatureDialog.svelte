@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { i18n, t, tk } from '../lib/i18n.svelte';
   // Assinatura (PLANO.md, item 1.7): desenhar com o dedo, digitar com fonte cursiva ou usar a foto
   // de uma assinatura no papel (o fundo é removido por limiar de cor). Tudo vira PNG transparente.
   import { onMount, tick } from 'svelte';
@@ -17,11 +18,11 @@
 
   type Tab = 'draw' | 'type' | 'photo';
   const TABS: { id: Tab; label: string; icon: typeof PenLine }[] = [
-    { id: 'draw', label: 'Desenhar', icon: PenLine },
-    { id: 'type', label: 'Digitar', icon: Keyboard },
-    { id: 'photo', label: 'Foto', icon: Camera },
+    { id: 'draw', label: tk('Desenhar'), icon: PenLine },
+    { id: 'type', label: tk('Digitar'), icon: Keyboard },
+    { id: 'photo', label: tk('Foto'), icon: Camera },
   ];
-  const INKS: { color: string; label: string }[] = [{ color: '#000000', label: 'Preta' }, { color: '#1a3cc8', label: 'Azul' }];
+  const INKS: { color: string; label: string }[] = [{ color: '#000000', label: tk('Preta') }, { color: '#1a3cc8', label: tk('Azul') }];
   const CURSIVE = ['Dancing Script', 'Great Vibes', 'Caveat'];
   const OUT = 3; // assinaturas são geradas em 3× o tamanho da tela (nítidas no PDF)
 
@@ -43,7 +44,7 @@
   async function finish(canvas: HTMLCanvasElement | null) {
     error = '';
     const trimmed = canvas && trimTransparent(canvas, 6);
-    if (!trimmed) { error = 'A assinatura está vazia.'; return; }
+    if (!trimmed) { error = t('A assinatura está vazia.'); return; }
     const asset = await assetFromCanvas(trimmed, 'image/png');
     if (remember) await saveSignature({ id: newId(), png: asset.bytes, w: asset.w, h: asset.h, createdAt: Date.now() }).catch(() => {});
     onuse(asset);
@@ -238,7 +239,7 @@
       await tick();
       process();
     } catch {
-      error = 'Não foi possível ler esta imagem.';
+      error = t('Não foi possível ler esta imagem.');
     }
   }
 
@@ -270,29 +271,29 @@
 <div class="backdrop" role="presentation" onkeydown={onKeydown}>
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="sig-title" bind:this={dialog}>
     <header>
-      <h2 id="sig-title">Assinatura</h2>
-      <button class="icon" aria-label="Fechar" onclick={onclose}><X size={22} /></button>
+      <h2 id="sig-title">{t('Assinatura')}</h2>
+      <button class="icon" aria-label={t('Fechar')} onclick={onclose}><X size={22} /></button>
     </header>
 
     {#if saved.length}
-      <section class="saved" aria-label="Assinaturas guardadas">
-        <h3>Guardadas neste aparelho</h3>
+      <section class="saved" aria-label={t('Assinaturas guardadas')}>
+        <h3>{t('Guardadas neste aparelho')}</h3>
         <ul>
           {#each saved as s (s.id)}
             <li>
-              <button class="use-saved" onclick={() => useSaved(s)} aria-label="Usar assinatura guardada"><img src={s.url} alt=""></button>
-              <button class="icon small" aria-label="Apagar assinatura guardada" onclick={() => removeSaved(s.id)}><Trash size={16} /></button>
+              <button class="use-saved" onclick={() => useSaved(s)} aria-label={t('Usar assinatura guardada')}><img src={s.url} alt=""></button>
+              <button class="icon small" aria-label={t('Apagar assinatura guardada')} onclick={() => removeSaved(s.id)}><Trash size={16} /></button>
             </li>
           {/each}
         </ul>
       </section>
     {/if}
 
-    <div class="tabs" role="tablist" aria-label="Como criar a assinatura">
-      {#each TABS as t (t.id)}
-        {@const Icon = t.icon}
-        <button role="tab" aria-selected={tab === t.id} aria-controls="sig-panel" onclick={() => { tab = t.id; error = ''; }}>
-          <Icon size={18} /> {t.label}
+    <div class="tabs" role="tablist" aria-label={t('Como criar a assinatura')}>
+      {#each TABS as tb (tb.id)}
+        {@const Icon = tb.icon}
+        <button role="tab" aria-selected={tab === tb.id} aria-controls="sig-panel" onclick={() => { tab = tb.id; error = ''; }}>
+          <Icon size={18} /> {t(tb.label)}
         </button>
       {/each}
     </div>
@@ -300,45 +301,45 @@
     <div class="panel" id="sig-panel" role="tabpanel">
       {#if tab === 'draw'}
         <div class="pad-wrap">
-          <canvas bind:this={pad} class="pad" aria-label="Área para desenhar a assinatura"
+          <canvas bind:this={pad} class="pad" aria-label={t('Área para desenhar a assinatura')}
             onpointerdown={onPadDown} onpointermove={onPadMove} onpointerup={onPadUp} onpointercancel={onPadUp}></canvas>
           <span class="baseline" aria-hidden="true"></span>
-          {#if !hasInk}<span class="placeholder" aria-hidden="true">Assine aqui com o dedo, a caneta ou o mouse</span>{/if}
+          {#if !hasInk}<span class="placeholder" aria-hidden="true">{t('Assine aqui com o dedo, a caneta ou o mouse')}</span>{/if}
         </div>
-        <p class="tip portrait-only">Dica: gire o celular para ter mais espaço.</p>
+        <p class="tip portrait-only">{t('Dica: gire o celular para ter mais espaço.')}</p>
       {:else if tab === 'type'}
-        <label class="field">Seu nome
-          <input type="text" bind:value={typed} autocomplete="name" placeholder="Digite seu nome" maxlength="60">
+        <label class="field">{t('Seu nome')}
+          <input type="text" bind:value={typed} autocomplete="name" placeholder={t('Digite seu nome')} maxlength="60">
         </label>
-        <div class="fonts" role="radiogroup" aria-label="Estilo da letra">
+        <div class="fonts" role="radiogroup" aria-label={t('Estilo da letra')}>
           {#each CURSIVE as f (f)}
             <button role="radio" aria-checked={cursive === f} onclick={() => (cursive = f)}
-              style:font-family="'{f}', cursive" style:color={ink}>{typed.trim() || 'Sua assinatura'}</button>
+              style:font-family="'{f}', cursive" style:color={ink}>{typed.trim() || t('Sua assinatura')}</button>
           {/each}
         </div>
       {:else}
-        <p class="help">Assine num papel branco, fotografe de perto e com boa luz.</p>
-        <button class="secondary" onclick={() => photoInput?.click()}><Camera size={18} /> {hasPhoto ? 'Escolher outra foto' : 'Tirar foto ou escolher imagem'}</button>
+        <p class="help">{t('Assine num papel branco, fotografe de perto e com boa luz.')}</p>
+        <button class="secondary" onclick={() => photoInput?.click()}><Camera size={18} /> {hasPhoto ? t('Escolher outra foto') : t('Tirar foto ou escolher imagem')}</button>
         <input bind:this={photoInput} type="file" accept="image/*" hidden
           onchange={(e) => { onPhoto(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }}>
         {#if hasPhoto}
-          <div class="preview"><canvas bind:this={preview} aria-label="Assinatura sem o fundo"></canvas></div>
-          <label class="field">Sensibilidade
-            <input type="range" min="-60" max="60" step="2" bind:value={sensitivity} oninput={process} aria-label="Sensibilidade (pega traços mais claros)">
+          <div class="preview"><canvas bind:this={preview} aria-label={t('Assinatura sem o fundo')}></canvas></div>
+          <label class="field">{t('Sensibilidade')}
+            <input type="range" min="-60" max="60" step="2" bind:value={sensitivity} oninput={process} aria-label={t('Sensibilidade (pega traços mais claros)')}>
           </label>
-          <div class="inks" role="radiogroup" aria-label="Cor do traço da foto">
-            {#each [{ c: '#000000', l: 'Preta' }, { c: '#1a3cc8', l: 'Azul' }, { c: 'original', l: 'Original' }] as o (o.c)}
-              <button role="radio" aria-checked={photoInk === o.c} onclick={() => { photoInk = o.c as InkColor; process(); }}>{o.l}</button>
+          <div class="inks" role="radiogroup" aria-label={t('Cor do traço da foto')}>
+            {#each [{ c: '#000000', l: tk('Preta') }, { c: '#1a3cc8', l: tk('Azul') }, { c: 'original', l: tk('Original') }] as o (o.c)}
+              <button role="radio" aria-checked={photoInk === o.c} onclick={() => { photoInk = o.c as InkColor; process(); }}>{t(o.l)}</button>
             {/each}
           </div>
         {/if}
       {/if}
 
       {#if tab !== 'photo'}
-        <div class="inks" role="radiogroup" aria-label="Cor da tinta">
+        <div class="inks" role="radiogroup" aria-label={t('Cor da tinta')}>
           {#each INKS as i (i.color)}
             <button role="radio" aria-checked={ink === i.color} onclick={() => { ink = i.color; redraw(); }}>
-              <span class="dot" style:background={i.color}></span>{i.label}
+              <span class="dot" style:background={i.color}></span>{t(i.label)}
             </button>
           {/each}
         </div>
@@ -348,15 +349,20 @@
     {#if error}<p class="error" role="alert">{error}</p>{/if}
 
     <footer>
-      <label class="remember"><input type="checkbox" bind:checked={remember}> Guardar neste aparelho</label>
+      <label class="remember"><input type="checkbox" bind:checked={remember}> {t('Guardar neste aparelho')}</label>
       <div class="buttons">
-        {#if tab === 'draw'}<button class="secondary" onclick={clearPad} disabled={!hasInk}><Eraser size={18} /> Limpar</button>{/if}
-        <button class="primary" onclick={use} disabled={!canUse}>Usar</button>
+        {#if tab === 'draw'}<button class="secondary" onclick={clearPad} disabled={!hasInk}><Eraser size={18} /> {t('Limpar')}</button>{/if}
+        <button class="primary" onclick={use} disabled={!canUse}>{t('Usar')}</button>
       </div>
     </footer>
     <p class="legal">
-      Assinatura eletrônica simples. Para validade jurídica plena, use o
-      <a href="https://www.gov.br/governodigital/pt-br/identidade/assinatura-eletronica" target="_blank" rel="noopener noreferrer">assinador do gov.br</a>.
+      <!-- O assinador do gov.br só vale no Brasil: nos outros idiomas, a orientação é genérica -->
+      {#if i18n.locale === 'pt-BR'}
+        Assinatura eletrônica simples. Para validade jurídica plena, use o
+        <a href="https://www.gov.br/governodigital/pt-br/identidade/assinatura-eletronica" target="_blank" rel="noopener noreferrer">assinador do gov.br</a>.
+      {:else}
+        {t('Assinatura eletrônica simples. Para validade jurídica plena, use uma assinatura digital qualificada do seu país.')}
+      {/if}
     </p>
   </div>
 </div>

@@ -1,12 +1,13 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   import { pwa } from '../lib/pwa.svelte';
 </script>
 
 {#if pwa.needRefresh}
   <div class="toast" role="status">
-    <span>Nova versão disponível.</span>
-    <button class="button primary" onclick={() => pwa.update()}>Atualizar</button>
-    <button class="button" onclick={() => pwa.dismiss()}>Agora não</button>
+    <span>{t('Nova versão disponível.')}</span>
+    <button class="button primary" onclick={() => pwa.update()}>{t('Atualizar')}</button>
+    <button class="button" onclick={() => pwa.dismiss()}>{t('Agora não')}</button>
   </div>
 {/if}
 

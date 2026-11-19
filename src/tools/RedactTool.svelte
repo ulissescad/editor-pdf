@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tn } from '../lib/i18n.svelte';
   // Tarjar informações (PLANO.md, item 2.11): marcar áreas arrastando sobre a página (dedo ou mouse) ou
   // procurar no texto (palavras, CPF, CNPJ, e-mail, telefone). Ao aplicar, as páginas com tarja viram
   // imagem com os retângulos pintados, e o conteúdo original delas sai do arquivo.
@@ -104,12 +105,12 @@
       }
       rects = new Map(next);
       found = hits
-        ? `${what}: ${hits} ocorrência${hits === 1 ? '' : 's'} marcada${hits === 1 ? '' : 's'} em ${touched.size} página${touched.size === 1 ? '' : 's'}.`
-        : `${what}: nada encontrado no texto. Em PDFs digitalizados (fotos de páginas), marque as áreas arrastando sobre a página.`;
+        ? `${what}: ${tn(hits, '{n} ocorrência marcada', '{n} ocorrências marcadas')} ${tn(touched.size, 'em {n} página.', 'em {n} páginas.')}`
+        : `${what}: ${t('nada encontrado no texto. Em PDFs digitalizados (fotos de páginas), marque as áreas arrastando sobre a página.')}`;
       if (hits && !touched.has(at)) at = Math.min(...touched);
     } catch (err) {
       console.error(err);
-      found = 'Não foi possível procurar no texto deste PDF.';
+      found = t('Não foi possível procurar no texto deste PDF.');
     } finally {
       searching = false;
     }
@@ -119,67 +120,67 @@
     await search(queryRegex(query), true, `“${query.trim()}”`);
   }
 
-  const searchPattern = (id: PatternId) => search(PATTERNS[id].re, false, PATTERNS[id].label);
+  const searchPattern = (id: PatternId) => search(PATTERNS[id].re, false, t(PATTERNS[id].label));
 
   async function pick(f: Picked) { doc = f.doc; at = 0; rects = new Map(); found = ''; }
 
   async function run(f: Picked, progress: Progress): Promise<RunResult> {
-    if (!total) throw new ToolError('Marque pelo menos uma área para tarjar.');
+    if (!total) throw new ToolError(t('Marque pelo menos uma área para tarjar.'));
     const { redactPdf } = await import('../pdf/raster');
     const bytes = await redactPdf(f.bytes, rects, {
       dpi: 200, clearMetadata,
-      onProgress: (done, n) => progress(done < n ? `Tarjando a página ${done + 1} de ${n}…` : 'Montando o PDF…'),
+      onProgress: (done, n) => progress(done < n ? t('Tarjando a página {i} de {n}…', { i: done + 1, n }) : t('Montando o PDF…')),
     });
     return {
-      files: [{ name: `${baseName(f.name)}-tarjado.pdf`, bytes, mime: 'application/pdf' }],
-      summary: `${total} tarja${total === 1 ? '' : 's'} em ${pagesMarked} página${pagesMarked === 1 ? '' : 's'}: o conteúdo coberto foi removido do arquivo.`,
-      note: 'As páginas com tarja viraram imagem: o texto delas não pode mais ser selecionado nem pesquisado.',
+      files: [{ name: `${baseName(f.name)}-${t('tarjado')}.pdf`, bytes, mime: 'application/pdf' }],
+      summary: `${tn(total, '{n} tarja', '{n} tarjas')} ${tn(pagesMarked, 'em {n} página', 'em {n} páginas')}: ${t('o conteúdo coberto foi removido do arquivo.')}`,
+      note: t('As páginas com tarja viraram imagem: o texto delas não pode mais ser selecionado nem pesquisado.'),
     };
   }
 </script>
 
-<OneFileTool id="tarjar" action={total ? `Aplicar ${total} tarja${total === 1 ? '' : 's'}` : 'Aplicar tarjas'} icon={Eraser}
+<OneFileTool id="tarjar" action={total ? tn(total, 'Aplicar {n} tarja', 'Aplicar {n} tarjas') : t('Aplicar tarjas')} icon={Eraser}
   {run} canRun={total > 0 && !searching} onpick={pick} onclear={() => { doc = null; rects = new Map(); }} wide>
   {#snippet options()}
     <div class="row">
-      <label class="label" for="rq">Procurar no texto e tarjar</label>
+      <label class="label" for="rq">{t('Procurar no texto e tarjar')}</label>
       <div class="find">
-        <input id="rq" type="search" bind:value={query} placeholder="Nome, número…" autocomplete="off"
+        <input id="rq" type="search" bind:value={query} placeholder={t('Nome, número…')} autocomplete="off"
           onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); searchQuery(); } }}>
-        <button type="button" class="button" onclick={searchQuery} disabled={!query.trim() || searching}><Search size={18} aria-hidden="true" /> Marcar</button>
+        <button type="button" class="button" onclick={searchQuery} disabled={!query.trim() || searching}><Search size={18} aria-hidden="true" /> {t('Marcar')}</button>
       </div>
-      <div class="chips" role="group" aria-label="Marcar padrões">
+      <div class="chips" role="group" aria-label={t('Marcar padrões')}>
         {#each Object.entries(PATTERNS) as [id, p] (id)}
-          <button type="button" class="button small" onclick={() => searchPattern(id as PatternId)} disabled={searching}>Todos os {p.label}s</button>
+          <button type="button" class="button small" onclick={() => searchPattern(id as PatternId)} disabled={searching}>{t('Todos os {label}s', { label: t(p.label) })}</button>
         {/each}
       </div>
       {#if found}<p class="notice info" role="status">{found}</p>{/if}
     </div>
-    <label class="check"><input type="checkbox" bind:checked={clearMetadata}> Remover também o título, o autor e as outras propriedades do documento</label>
-    <p class="hint">Ao aplicar, cada página com tarja vira uma imagem: o que está embaixo da tarja deixa de existir no arquivo (não dá para copiar nem recuperar).</p>
+    <label class="check"><input type="checkbox" bind:checked={clearMetadata}> {t('Remover também o título, o autor e as outras propriedades do documento')}</label>
+    <p class="hint">{t('Ao aplicar, cada página com tarja vira uma imagem: o que está embaixo da tarja deixa de existir no arquivo (não dá para copiar nem recuperar).')}</p>
   {/snippet}
   {#snippet after(f)}
     <div class="panel pages">
       <div class="head">
-        <h2>Marque as áreas</h2>
-        <span class="count">{total} tarja{total === 1 ? '' : 's'}</span>
-        {#if total}<button type="button" class="button small" onclick={() => { rects = new Map(); chosen = -1; }}>Limpar tudo</button>{/if}
+        <h2>{t('Marque as áreas')}</h2>
+        <span class="count">{tn(total, '{n} tarja', '{n} tarjas')}</span>
+        {#if total}<button type="button" class="button small" onclick={() => { rects = new Map(); chosen = -1; }}>{t('Limpar tudo')}</button>{/if}
       </div>
-      <p class="hint">Arraste sobre a página para cobrir uma área. Toque numa tarja para removê-la.</p>
-      <PagePreview doc={f.doc} index={at} width={560} maxVh={70} label="Página {at + 1}">
+      <p class="hint">{t('Arraste sobre a página para cobrir uma área. Toque numa tarja para removê-la.')}</p>
+      <PagePreview doc={f.doc} index={at} width={560} maxVh={70} label={t('Página {n}', { n: at + 1 })}>
         {#snippet overlay(size)}
-          <div class="draw" role="application" aria-label="Área da página {at + 1} para marcar tarjas"
+          <div class="draw" role="application" aria-label={t('Área da página {n} para marcar tarjas', { n: at + 1 })}
             onpointerdown={(e) => down(e, size)} onpointermove={move} onpointerup={up} onpointercancel={up}>
             {#each here as r, i (i)}
               <button type="button" class="bar" class:chosen={chosen === i} style={pct(r, size)}
-                aria-label="Tarja {i + 1}" aria-pressed={chosen === i} onpointerdown={(e) => e.stopPropagation()}
+                aria-label={t('Tarja {n}', { n: i + 1 })} aria-pressed={chosen === i} onpointerdown={(e) => e.stopPropagation()}
                 onclick={() => (chosen = chosen === i ? -1 : i)}></button>
             {/each}
             {#if chosen >= 0 && here[chosen]}
               {@const r = here[chosen]}
               <button type="button" class="rm" style:left="{(r.x / size.width) * 100}%" style:top="{((r.y + r.h) / size.height) * 100}%"
                 onpointerdown={(e) => e.stopPropagation()} onclick={() => remove(chosen)}>
-                <X size={18} aria-hidden="true" /> Remover tarja
+                <X size={18} aria-hidden="true" /> {t('Remover tarja')}
               </button>
             {/if}
             {#if draft}<div class="bar draft" style={pct(draft, size)}></div>{/if}

@@ -3,13 +3,14 @@
 // em tests/unit; a pintura e a montagem do PDF ficam em raster.ts.
 import type { Rect } from '../editor/model';
 import { evenMeasure, selectBetween, type Caret, type Measure, type TextRun } from '../editor/textsel';
+import { tk } from '../lib/i18n.svelte';
 
 /** Padrões prontos (Brasil). */
 export const PATTERNS = {
-  cpf: { label: 'CPF', re: /\b\d{3}\.?\d{3}\.?\d{3}\s?-?\s?\d{2}\b/g },
-  cnpj: { label: 'CNPJ', re: /\b\d{2}\.?\d{3}\.?\d{3}\s?\/?\s?\d{4}\s?-?\s?\d{2}\b/g },
-  email: { label: 'E-mail', re: /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g },
-  telefone: { label: 'Telefone', re: /(?:\(\s?\d{2}\s?\)|\b\d{2})\s?9?\d{4}\s?-?\s?\d{4}\b/g },
+  cpf: { label: tk('CPF'), re: /\b\d{3}\.?\d{3}\.?\d{3}\s?-?\s?\d{2}\b/g },
+  cnpj: { label: tk('CNPJ'), re: /\b\d{2}\.?\d{3}\.?\d{3}\s?\/?\s?\d{4}\s?-?\s?\d{2}\b/g },
+  email: { label: tk('E-mail'), re: /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g },
+  telefone: { label: tk('Telefone'), re: /(?:\(\s?\d{2}\s?\)|\b\d{2})\s?9?\d{4}\s?-?\s?\d{4}\b/g },
 } as const;
 export type PatternId = keyof typeof PATTERNS;
 

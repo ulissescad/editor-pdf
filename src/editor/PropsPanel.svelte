@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tk } from '../lib/i18n.svelte';
   import { FONTS, isFixed, isItalic, type Align, type FontId, type MarkupType, type ShapeType } from './model';
   import { SYMBOL_DEFS, SYMBOL_IDS } from './symbols';
   import {
@@ -31,9 +32,9 @@
 
   const SWATCHES = ['#000000', '#1a3cc8', '#c62828', '#2e7d32'];
   const ALIGNS: { value: Align; label: string; icon: typeof AlignStart }[] = [
-    { value: 'left', label: 'Alinhar à esquerda', icon: AlignStart },
-    { value: 'center', label: 'Centralizar', icon: AlignCenter },
-    { value: 'right', label: 'Alinhar à direita', icon: AlignEnd },
+    { value: 'left', label: tk('Alinhar à esquerda'), icon: AlignStart },
+    { value: 'center', label: tk('Centralizar'), icon: AlignCenter },
+    { value: 'right', label: tk('Alinhar à direita'), icon: AlignEnd },
   ];
   const s = $derived(ed.style);
   const sel = $derived(ed.selected);
@@ -57,174 +58,174 @@
   const setFieldSize = (v: number) => { if (v >= 5 && v <= 36) ed.setField({ size: v }); };
 </script>
 
-<div class="props" role="toolbar" aria-label={mode === 'text' ? 'Formatação do texto' : 'Propriedades'}>
+<div class="props" role="toolbar" aria-label={mode === 'text' ? t('Formatação do texto') : t('Propriedades')}>
   {#if mode === 'text'}
-    <select aria-label="Fonte" value={s.font} onchange={(e) => ed.setStyle({ font: e.currentTarget.value as FontId })}>
-      {#each Object.entries(FONTS) as [id, f] (id)}<option value={id}>{f.label}</option>{/each}
+    <select aria-label={t('Fonte')} value={s.font} onchange={(e) => ed.setStyle({ font: e.currentTarget.value as FontId })}>
+      {#each Object.entries(FONTS) as [id, f] (id)}<option value={id}>{t(f.label)}</option>{/each}
     </select>
 
-    <div class="group" role="group" aria-label="Tamanho da fonte">
-      <button class="icon" aria-label="Diminuir fonte" onpointerdown={keepFocus} onclick={() => setSize(s.size - 1)}><Minus size={18} /></button>
-      <input aria-label="Tamanho em pontos" type="number" min="4" max="96" step="0.5" value={s.size}
+    <div class="group" role="group" aria-label={t('Tamanho da fonte')}>
+      <button class="icon" aria-label={t('Diminuir fonte')} onpointerdown={keepFocus} onclick={() => setSize(s.size - 1)}><Minus size={18} /></button>
+      <input aria-label={t('Tamanho em pontos')} type="number" min="4" max="96" step="0.5" value={s.size}
         onchange={(e) => setSize(Number(e.currentTarget.value))}>
-      <button class="icon" aria-label="Aumentar fonte" onpointerdown={keepFocus} onclick={() => setSize(s.size + 1)}><Plus size={18} /></button>
+      <button class="icon" aria-label={t('Aumentar fonte')} onpointerdown={keepFocus} onclick={() => setSize(s.size + 1)}><Plus size={18} /></button>
     </div>
 
-    <div class="group" role="group" aria-label="Estilo">
-      <button class="icon" aria-label="Negrito" aria-pressed={s.bold} onpointerdown={keepFocus} onclick={() => ed.setStyle({ bold: !s.bold })}><b>N</b></button>
-      <button class="icon" aria-label="Itálico" aria-pressed={isItalic(s)} disabled={!FONTS[s.font].italic}
-      title={FONTS[s.font].italic ? 'Itálico' : 'Esta fonte não tem itálico'}
+    <div class="group" role="group" aria-label={t('Estilo')}>
+      <button class="icon" aria-label={t('Negrito')} aria-pressed={s.bold} onpointerdown={keepFocus} onclick={() => ed.setStyle({ bold: !s.bold })}><b>N</b></button>
+      <button class="icon" aria-label={t('Itálico')} aria-pressed={isItalic(s)} disabled={!FONTS[s.font].italic}
+      title={FONTS[s.font].italic ? t('Itálico') : t('Esta fonte não tem itálico')}
       onpointerdown={keepFocus} onclick={() => ed.setStyle({ italic: !s.italic })}><i>I</i></button>
     </div>
 
-    <div class="group" role="group" aria-label="Alinhamento">
+    <div class="group" role="group" aria-label={t('Alinhamento')}>
       {#each ALIGNS as a (a.value)}
         {@const Icon = a.icon}
-        <button class="icon" aria-label={a.label} aria-pressed={s.align === a.value} onpointerdown={keepFocus}
+        <button class="icon" aria-label={t(a.label)} aria-pressed={s.align === a.value} onpointerdown={keepFocus}
           onclick={() => ed.setStyle({ align: a.value })}><Icon size={18} /></button>
       {/each}
     </div>
 
-    <div class="group" role="group" aria-label="Cor">
+    <div class="group" role="group" aria-label={t('Cor')}>
       {#each SWATCHES as c (c)}
-        <button class="swatch" aria-label="Cor {c}" aria-pressed={s.color === c} style:--c={c} onpointerdown={keepFocus}
+        <button class="swatch" aria-label={t('Cor {c}', { c })} aria-pressed={s.color === c} style:--c={c} onpointerdown={keepFocus}
           onclick={() => ed.setStyle({ color: c })}></button>
       {/each}
-      <input class="color" type="color" aria-label="Outra cor" value={s.color} oninput={(e) => ed.setStyle({ color: e.currentTarget.value })}>
+      <input class="color" type="color" aria-label={t('Outra cor')} value={s.color} oninput={(e) => ed.setStyle({ color: e.currentTarget.value })}>
     </div>
 
   {:else if mode === 'symbol'}
-    <div class="group" role="group" aria-label="Símbolo">
+    <div class="group" role="group" aria-label={t('Símbolo')}>
       {#each SYMBOL_IDS as id (id)}
-        <button class="icon sym" aria-label={SYMBOL_DEFS[id].label} title={SYMBOL_DEFS[id].label} aria-pressed={ed.stamp === id}
+        <button class="icon sym" aria-label={t(SYMBOL_DEFS[id].label)} title={t(SYMBOL_DEFS[id].label)} aria-pressed={ed.stamp === id}
           onclick={() => ed.setSymbol({ symbol: id })}>{SYMBOL_DEFS[id].char}</button>
       {/each}
       {#if !sel}
-        <button class="icon text" aria-label="Data de hoje" title="Data de hoje" aria-pressed={ed.stamp === 'date'}
-          onclick={() => (ed.stamp = 'date')}><Calendar size={18} /><span>Data</span></button>
+        <button class="icon text" aria-label={t('Data de hoje')} title={t('Data de hoje')} aria-pressed={ed.stamp === 'date'}
+          onclick={() => (ed.stamp = 'date')}><Calendar size={18} /><span>{t('Data')}</span></button>
       {/if}
     </div>
     {#if ed.stamp !== 'date' || sel}
-      <div class="group" role="group" aria-label="Cor do símbolo">
+      <div class="group" role="group" aria-label={t('Cor do símbolo')}>
         {#each SWATCHES as c (c)}
-          <button class="swatch" aria-label="Cor {c}" aria-pressed={ed.symbolColor === c} style:--c={c}
+          <button class="swatch" aria-label={t('Cor {c}', { c })} aria-pressed={ed.symbolColor === c} style:--c={c}
             onclick={() => ed.setSymbol({ color: c })}></button>
         {/each}
       </div>
     {/if}
-    {#if !sel}<span class="hint">Toque na página para marcar.</span>{/if}
+    {#if !sel}<span class="hint">{t('Toque na página para marcar.')}</span>{/if}
 
   {:else if mode === 'field'}
-    <div class="group" role="group" aria-label="Tipo de campo">
+    <div class="group" role="group" aria-label={t('Tipo de campo')}>
       <button class="icon text" aria-pressed={(field?.type ?? ed.fieldType) === 'text'} onclick={() => ed.setField({ type: 'text' })}>
-        <TextCursorInput size={18} /><span>Texto</span></button>
+        <TextCursorInput size={18} /><span>{t('Texto')}</span></button>
       <button class="icon text" aria-pressed={(field?.type ?? ed.fieldType) === 'check'} onclick={() => ed.setField({ type: 'check' })}>
-        <SquareCheck size={18} /><span>Caixa</span></button>
+        <SquareCheck size={18} /><span>{t('Caixa')}</span></button>
     </div>
     {#if field}
-      <label class="name">Nome
-        <input type="text" value={field.name} aria-label="Nome do campo" autocomplete="off" spellcheck="false"
+      <label class="name">{t('Nome')}
+        <input type="text" value={field.name} aria-label={t('Nome do campo')} autocomplete="off" spellcheck="false"
           onchange={(e) => ed.setField({ name: e.currentTarget.value })}>
       </label>
       {#if field.type === 'text'}
-        <div class="group" role="group" aria-label="Tamanho da fonte do campo">
-          <button class="icon" aria-label="Diminuir fonte do campo" onclick={() => setFieldSize(field.size - 1)}><Minus size={18} /></button>
+        <div class="group" role="group" aria-label={t('Tamanho da fonte do campo')}>
+          <button class="icon" aria-label={t('Diminuir fonte do campo')} onclick={() => setFieldSize(field.size - 1)}><Minus size={18} /></button>
           <span class="num" aria-live="polite">{field.size}</span>
-          <button class="icon" aria-label="Aumentar fonte do campo" onclick={() => setFieldSize(field.size + 1)}><Plus size={18} /></button>
-          <button class="icon" aria-label="Várias linhas" title="Várias linhas" aria-pressed={field.multiline}
+          <button class="icon" aria-label={t('Aumentar fonte do campo')} onclick={() => setFieldSize(field.size + 1)}><Plus size={18} /></button>
+          <button class="icon" aria-label={t('Várias linhas')} title={t('Várias linhas')} aria-pressed={field.multiline}
             onclick={() => ed.setField({ multiline: !field.multiline })}><WrapText size={18} /></button>
         </div>
       {/if}
     {:else}
-      <button class="action" onclick={() => ed.detectFields()} disabled={!!ed.busy}><ScanSearch size={18} /> Detectar campos</button>
-      <span class="hint">Toque na página para criar um campo.</span>
+      <button class="action" onclick={() => ed.detectFields()} disabled={!!ed.busy}><ScanSearch size={18} /> {t('Detectar campos')}</button>
+      <span class="hint">{t('Toque na página para criar um campo.')}</span>
     {/if}
 
   {:else if mode === 'markup'}
-    <div class="group" role="group" aria-label="Tipo de marcação">
-      {#each Object.keys(MARKUP_LABELS) as MarkupType[] as t (t)}
-        {@const Icon = MARKUP_ICONS[t]}
-        <button class="icon text" aria-pressed={markType === t} onclick={() => ed.setMarkup({ type: t })}><Icon size={18} /><span>{MARKUP_LABELS[t]}</span></button>
+    <div class="group" role="group" aria-label={t('Tipo de marcação')}>
+      {#each Object.keys(MARKUP_LABELS) as MarkupType[] as ty (ty)}
+        {@const Icon = MARKUP_ICONS[ty]}
+        <button class="icon text" aria-pressed={markType === ty} onclick={() => ed.setMarkup({ type: ty })}><Icon size={18} /><span>{t(MARKUP_LABELS[ty])}</span></button>
       {/each}
     </div>
-    <div class="group" role="group" aria-label="Cor da marcação">
+    <div class="group" role="group" aria-label={t('Cor da marcação')}>
       {#each markType === 'highlight' ? HIGHLIGHT_COLORS : STROKE_COLORS as c (c)}
-        <button class="swatch" aria-label="Cor {c}" aria-pressed={markColor === c} style:--c={c} onclick={() => ed.setMarkup({ color: c })}></button>
+        <button class="swatch" aria-label={t('Cor {c}', { c })} aria-pressed={markColor === c} style:--c={c} onclick={() => ed.setMarkup({ color: c })}></button>
       {/each}
     </div>
-    {#if !sel}<span class="hint">{coarse ? 'Arraste o dedo sobre o texto (dois dedos rolam).' : 'Arraste sobre o texto.'} Fora do texto, desenha um retângulo.</span>{/if}
+    {#if !sel}<span class="hint">{coarse ? t('Arraste o dedo sobre o texto (dois dedos rolam).') : t('Arraste sobre o texto.')} {t('Fora do texto, desenha um retângulo.')}</span>{/if}
 
   {:else if mode === 'ink'}
     {#if sel?.kind !== 'ink' || !marker}
-      <div class="group" role="group" aria-label="Espessura">
+      <div class="group" role="group" aria-label={t('Espessura')}>
         {#each INK_WIDTHS as wd (wd.value)}
           <button class="icon text" aria-pressed={!marker && (sel?.kind === 'ink' ? sel.width : ed.inkWidth) === wd.value}
             onclick={() => ed.setInk({ width: wd.value })}>
-            <span class="stroke" style:height="{Math.max(1, wd.value * 0.8)}px"></span><span>{wd.label}</span></button>
+            <span class="stroke" style:height="{Math.max(1, wd.value * 0.8)}px"></span><span>{t(wd.label)}</span></button>
         {/each}
         {#if !sel}
-          <button class="icon text" aria-pressed={marker} onclick={() => ed.setInk({ marker: !marker })}><Highlighter size={18} /><span>Marca-texto</span></button>
+          <button class="icon text" aria-pressed={marker} onclick={() => ed.setInk({ marker: !marker })}><Highlighter size={18} /><span>{t('Marca-texto')}</span></button>
         {/if}
       </div>
-      <div class="group" role="group" aria-label="Cor da caneta">
+      <div class="group" role="group" aria-label={t('Cor da caneta')}>
         {#each STROKE_COLORS as c (c)}
-          <button class="swatch" aria-label="Cor {c}" aria-pressed={!marker && (sel?.kind === 'ink' ? sel.color : ed.inkColor) === c} style:--c={c}
+          <button class="swatch" aria-label={t('Cor {c}', { c })} aria-pressed={!marker && (sel?.kind === 'ink' ? sel.color : ed.inkColor) === c} style:--c={c}
             onclick={() => ed.setInk({ color: c })}></button>
         {/each}
       </div>
     {/if}
-    {#if !sel}<span class="hint">{coarse ? 'Desenhe com um dedo; dois dedos rolam e dão zoom.' : 'Desenhe arrastando na página.'}</span>{/if}
+    {#if !sel}<span class="hint">{coarse ? t('Desenhe com um dedo; dois dedos rolam e dão zoom.') : t('Desenhe arrastando na página.')}</span>{/if}
 
   {:else if mode === 'shape'}
-    <div class="group" role="group" aria-label="Forma">
-      {#each shapes as t (t)}
-        {@const Icon = SHAPE_ICONS[t]}
-        <button class="icon text" aria-label={SHAPE_LABELS[t]} title={SHAPE_LABELS[t]} aria-pressed={shapeType === t}
-          onclick={() => ed.setShape({ shape: t })}><Icon size={18} /><span class="lbl">{SHAPE_LABELS[t]}</span></button>
+    <div class="group" role="group" aria-label={t('Forma')}>
+      {#each shapes as ty (ty)}
+        {@const Icon = SHAPE_ICONS[ty]}
+        <button class="icon text" aria-label={t(SHAPE_LABELS[ty])} title={t(SHAPE_LABELS[ty])} aria-pressed={shapeType === ty}
+          onclick={() => ed.setShape({ shape: ty })}><Icon size={18} /><span class="lbl">{t(SHAPE_LABELS[ty])}</span></button>
       {/each}
     </div>
     {#if shapeType !== 'whiteout'}
-      <div class="group" role="group" aria-label="Espessura do traço">
+      <div class="group" role="group" aria-label={t('Espessura do traço')}>
         {#each SHAPE_WIDTHS as wd (wd.value)}
-          <button class="icon" aria-label="Traço {wd.label.toLowerCase()}" title="Traço {wd.label.toLowerCase()}"
+          <button class="icon" aria-label={t('Traço {w}', { w: t(wd.label).toLowerCase() })} title={t('Traço {w}', { w: t(wd.label).toLowerCase() })}
             aria-pressed={(sel?.kind === 'shape' ? sel.width : ed.shapeWidth) === wd.value}
             onclick={() => ed.setShape({ width: wd.value })}><span class="stroke" style:height="{wd.value}px"></span></button>
         {/each}
       </div>
-      <div class="group" role="group" aria-label="Cor da forma">
+      <div class="group" role="group" aria-label={t('Cor da forma')}>
         {#each STROKE_COLORS as c (c)}
-          <button class="swatch" aria-label="Cor {c}" aria-pressed={(sel?.kind === 'shape' ? sel.color : ed.shapeColor) === c} style:--c={c}
+          <button class="swatch" aria-label={t('Cor {c}', { c })} aria-pressed={(sel?.kind === 'shape' ? sel.color : ed.shapeColor) === c} style:--c={c}
             onclick={() => ed.setShape({ color: c })}></button>
         {/each}
       </div>
     {:else if !sel}
-      <span class="hint">O corretivo cobre com branco, mas o texto continua no arquivo. Para apagar de verdade, use “Tarjar”.</span>
+      <span class="hint">{t('O corretivo cobre com branco, mas o texto continua no arquivo. Para apagar de verdade, use “Tarjar”.')}</span>
     {/if}
-    {#if !sel && shapeType !== 'whiteout'}<span class="hint">Arraste na página para desenhar.</span>{/if}
+    {#if !sel && shapeType !== 'whiteout'}<span class="hint">{t('Arraste na página para desenhar.')}</span>{/if}
 
   {:else if mode === 'note'}
-    <div class="group" role="group" aria-label="Cor da nota">
+    <div class="group" role="group" aria-label={t('Cor da nota')}>
       {#each NOTE_COLORS as c (c)}
-        <button class="swatch" aria-label="Cor {c}" aria-pressed={(sel?.kind === 'note' ? sel.color : ed.noteColor) === c} style:--c={c}
+        <button class="swatch" aria-label={t('Cor {c}', { c })} aria-pressed={(sel?.kind === 'note' ? sel.color : ed.noteColor) === c} style:--c={c}
           onclick={() => ed.setNote({ color: c })}></button>
       {/each}
     </div>
     {#if sel}
-      <button class="action" onclick={() => ed.startEditing(sel.id)}><PencilLine size={18} /> Editar comentário</button>
+      <button class="action" onclick={() => ed.startEditing(sel.id)}><PencilLine size={18} /> {t('Editar comentário')}</button>
     {:else}
-      <span class="hint">Toque na página para deixar um comentário.</span>
+      <span class="hint">{t('Toque na página para deixar um comentário.')}</span>
     {/if}
 
   {:else if mode === 'image'}
-    <span class="hint">{sel?.kind === 'image' && sel.signature ? 'Assinatura' : 'Imagem'}: arraste para mover e use os cantos para mudar o tamanho.</span>
+    <span class="hint">{sel?.kind === 'image' && sel.signature ? t('Assinatura') : t('Imagem')}: {t('arraste para mover e use os cantos para mudar o tamanho.')}</span>
   {/if}
 
   {#if sel}
-    <div class="group" role="group" aria-label="Objeto selecionado">
+    <div class="group" role="group" aria-label={t('Objeto selecionado')}>
       {#if !isFixed(sel)}
-        <button class="icon" aria-label="Duplicar" title="Duplicar (Ctrl+D)" onclick={() => ed.duplicate()}><Copy size={18} /></button>
+        <button class="icon" aria-label={t('Duplicar')} title="{t('Duplicar')} (Ctrl+D)" onclick={() => ed.duplicate()}><Copy size={18} /></button>
       {/if}
-      <button class="icon danger" aria-label="Excluir" title="Excluir (Delete)" onclick={() => ed.remove()}><Trash size={18} /></button>
+      <button class="icon danger" aria-label={t('Excluir')} title="{t('Excluir')} (Delete)" onclick={() => ed.remove()}><Trash size={18} /></button>
     </div>
   {/if}
 </div>

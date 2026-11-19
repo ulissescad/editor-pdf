@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   // Escolher arquivos: botão grande, arrastar e soltar e, para imagens, a câmera do celular.
   import FileUp from '@lucide/svelte/icons/file-up';
   import Camera from '@lucide/svelte/icons/camera';
   import Plus from '@lucide/svelte/icons/plus';
 
   let {
-    label, accept = 'application/pdf,.pdf', multiple = false, camera = false, compact = false, hint = 'ou arraste para esta área',
+    label, accept = 'application/pdf,.pdf', multiple = false, camera = false, compact = false, hint = t('ou arraste para esta área'),
     onfiles,
   }: {
     label: string; accept?: string; multiple?: boolean; camera?: boolean; compact?: boolean; hint?: string;
@@ -34,14 +35,14 @@
       {label}
     </button>
     {#if camera && touch}
-      <button type="button" class="button" onclick={() => cameraInput?.click()}><Camera size={20} aria-hidden="true" /> Tirar foto</button>
+      <button type="button" class="button" onclick={() => cameraInput?.click()}><Camera size={20} aria-hidden="true" /> {t('Tirar foto')}</button>
     {/if}
   </div>
   {#if !compact && hint}<p class="hint">{hint}</p>{/if}
   <input bind:this={input} type="file" {accept} {multiple} hidden aria-label={label}
     onchange={(e) => { pick(e.currentTarget.files); e.currentTarget.value = ''; }}>
   {#if camera}
-    <input bind:this={cameraInput} type="file" accept="image/*" capture="environment" hidden aria-label="Tirar foto"
+    <input bind:this={cameraInput} type="file" accept="image/*" capture="environment" hidden aria-label={t('Tirar foto')}
       onchange={(e) => { pick(e.currentTarget.files); e.currentTarget.value = ''; }}>
   {/if}
 </div>

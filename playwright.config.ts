@@ -18,6 +18,8 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}${BASE_PATH}`,
     trace: 'retain-on-failure',
     acceptDownloads: true,
+    // O site segue o idioma do navegador: os roteiros são escritos para o português (tests/e2e/i18n.spec.ts cobre os outros)
+    locale: 'pt-BR',
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },

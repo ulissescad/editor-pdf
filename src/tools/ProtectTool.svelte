@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   // Proteger com senha (PLANO.md, item 2.7): AES-256 pelo qpdf (WebAssembly), com restrições opcionais.
   import OneFileTool, { type Picked, type Progress, type RunResult } from './OneFileTool.svelte';
   import { ToolError } from './handoff';
@@ -18,22 +19,24 @@
   const ready = $derived(password.length > 0 && confirm === password);
 
   async function run(f: Picked, progress: Progress): Promise<RunResult> {
-    progress('Carregando a criptografia…');
+    progress(t('Carregando a criptografia…'));
     const { protect, loadQpdf } = await import('../pdf/qpdf');
     await loadQpdf();
-    progress('Protegendo…');
+    progress(t('Protegendo…'));
     let bytes: Uint8Array;
     try {
       bytes = await protect(f.bytes, password, { print, copy, modify });
     } catch (err) {
-      if ((err as Error).name === 'WrongPasswordError') throw new ToolError('Este PDF já tem senha. Desbloqueie o arquivo antes de pôr uma senha nova.');
+      if ((err as Error).name === 'WrongPasswordError') throw new ToolError(t('Este PDF já tem senha. Desbloqueie o arquivo antes de pôr uma senha nova.'));
       throw err;
     }
-    const limits = [!print && 'imprimir', !copy && 'copiar', !modify && 'alterar'].filter(Boolean);
+    const limits = [!print && t('imprimir'), !copy && t('copiar'), !modify && t('alterar')].filter(Boolean);
     return {
-      files: [{ name: `${baseName(f.name)}-protegido.pdf`, bytes, mime: 'application/pdf' }],
-      summary: `Protegido com senha (AES-256)${limits.length ? `, sem permissão para ${limits.join(', ')}` : ''}.`,
-      note: 'Guarde a senha: sem ela não há como abrir o arquivo, nem por este site.',
+      files: [{ name: `${baseName(f.name)}-${t('protegido')}.pdf`, bytes, mime: 'application/pdf' }],
+      summary: limits.length
+        ? t('Protegido com senha (AES-256), sem permissão para {list}.', { list: limits.join(', ') })
+        : t('Protegido com senha (AES-256).'),
+      note: t('Guarde a senha: sem ela não há como abrir o arquivo, nem por este site.'),
       editable: false,
     };
   }
@@ -41,28 +44,28 @@
   function clear() { password = ''; confirm = ''; }
 </script>
 
-<OneFileTool id="proteger" action="Proteger PDF" icon={Lock} {run} canRun={ready} onclear={clear}>
+<OneFileTool id="proteger" action={t('Proteger PDF')} icon={Lock} {run} canRun={ready} onclear={clear}>
   {#snippet options()}
     <div class="row">
-      <label class="label" for="pw">Senha para abrir</label>
+      <label class="label" for="pw">{t('Senha para abrir')}</label>
       <div class="pw">
         <input id="pw" type={show ? 'text' : 'password'} autocomplete="new-password" bind:value={password}>
-        <button type="button" class="eye" aria-label={show ? 'Esconder a senha' : 'Mostrar a senha'} aria-pressed={show} onclick={() => (show = !show)}>
+        <button type="button" class="eye" aria-label={show ? t('Esconder a senha') : t('Mostrar a senha')} aria-pressed={show} onclick={() => (show = !show)}>
           {#if show}<EyeOff size={20} aria-hidden="true" />{:else}<Eye size={20} aria-hidden="true" />{/if}
         </button>
       </div>
     </div>
     <div class="row">
-      <label class="label" for="pw2">Repita a senha</label>
+      <label class="label" for="pw2">{t('Repita a senha')}</label>
       <input id="pw2" type={show ? 'text' : 'password'} autocomplete="new-password" bind:value={confirm}>
-      {#if mismatch}<p class="notice warn">As senhas não são iguais.</p>{/if}
+      {#if mismatch}<p class="notice warn">{t('As senhas não são iguais.')}</p>{/if}
     </div>
     <fieldset class="row perms">
-      <legend class="label">Quem abrir com a senha pode</legend>
-      <label class="check"><input type="checkbox" bind:checked={print}> Imprimir</label>
-      <label class="check"><input type="checkbox" bind:checked={copy}> Copiar texto e imagens</label>
-      <label class="check"><input type="checkbox" bind:checked={modify}> Alterar, comentar e preencher</label>
-      <p class="hint">As restrições são respeitadas pelos leitores de PDF comuns (Acrobat, navegadores), mas não são uma proteção forte. A senha de abrir é.</p>
+      <legend class="label">{t('Quem abrir com a senha pode')}</legend>
+      <label class="check"><input type="checkbox" bind:checked={print}> {t('Imprimir')}</label>
+      <label class="check"><input type="checkbox" bind:checked={copy}> {t('Copiar texto e imagens')}</label>
+      <label class="check"><input type="checkbox" bind:checked={modify}> {t('Alterar, comentar e preencher')}</label>
+      <p class="hint">{t('As restrições são respeitadas pelos leitores de PDF comuns (Acrobat, navegadores), mas não são uma proteção forte. A senha de abrir é.')}</p>
     </fieldset>
   {/snippet}
 </OneFileTool>

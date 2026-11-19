@@ -49,6 +49,9 @@ O plano completo, com as funções e os marcos, está em [PLANO.md](PLANO.md).
   marcados. Compara só o texto (imagens e formatação não entram).
 - **Receber arquivos**: com o site instalado, ele aparece em “Compartilhar” no Android e em “Abrir com” no Chrome e no
   Edge do computador.
+- **15 idiomas**, escolhidos pelo idioma do navegador ou pelo seletor no cabeçalho: português, inglês, espanhol, francês,
+  alemão, italiano, polonês, turco, indonésio, vietnamita, russo, hindi, japonês, coreano e chinês. Cada idioma é baixado só
+  por quem o usa.
 - Bibliotecas, fontes, CMaps e WebAssembly servidos pelo próprio site, com CSP que bloqueia qualquer outra origem.
 - Offline depois da primeira visita (service worker) e instalável.
 
@@ -93,7 +96,8 @@ src/pdf/                                  abertura (pdf.js), gravação/reabertu
                                           compressão, carimbos, recorte, tarja, achatar, propriedades, perspectiva e comparação
 src/tools/                                ferramentas (carregadas sob demanda); OneFileTool.svelte é a moldura das de um arquivo só
 src/storage/                              rascunhos automáticos e assinaturas guardadas (IndexedDB)
-src/lib/                                  catálogo de ferramentas, rotas, PWA, arquivos recebidos de outros apps
+src/lib/                                  catálogo de ferramentas, rotas, PWA, arquivos recebidos de outros apps, idiomas (i18n)
+src/i18n/                                 traduções (uma por idioma; a chave é o texto em português)
 public/share-target.js                    parte do service worker que recebe o “Compartilhar”
 config/site.ts                            caminho base e política de segurança (CSP)
 tests/unit, tests/e2e, tests/fixtures     testes e geração de PDFs sintéticos

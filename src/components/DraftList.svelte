@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fmtDate, t, tn } from '../lib/i18n.svelte';
   import { onMount } from 'svelte';
   import Clock from '@lucide/svelte/icons/clock';
   import Trash from '@lucide/svelte/icons/trash';
@@ -7,7 +8,6 @@
   let { onopen }: { onopen: (hash: string) => void } = $props();
   let drafts = $state<DraftSummary[]>([]);
 
-  const fmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   onMount(async () => {
     drafts = await listDrafts().catch(() => []);
@@ -21,21 +21,21 @@
 
 {#if drafts.length}
   <section class="drafts" aria-labelledby="drafts-title">
-    <h2 id="drafts-title"><Clock size={18} aria-hidden="true" /> Continuar de onde parou</h2>
+    <h2 id="drafts-title"><Clock size={18} aria-hidden="true" /> {t('Continuar de onde parou')}</h2>
     <ul>
       {#each drafts as d (d.hash)}
         <li>
           <button class="open" onclick={() => onopen(d.hash)}>
             <span class="name">{d.name}</span>
-            <span class="meta">{d.pages} página{d.pages === 1 ? '' : 's'} · {fmt.format(d.updatedAt)}</span>
+            <span class="meta">{tn(d.pages, '{n} página', '{n} páginas')} · {fmtDate(d.updatedAt, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
           </button>
-          <button class="del" aria-label="Apagar rascunho de {d.name}" title="Apagar rascunho" onclick={() => remove(d.hash)}>
+          <button class="del" aria-label={t('Apagar rascunho de {name}', { name: d.name })} title={t('Apagar rascunho')} onclick={() => remove(d.hash)}>
             <Trash size={18} />
           </button>
         </li>
       {/each}
     </ul>
-    <p class="note">Os rascunhos ficam só neste navegador e são apagados depois de 30 dias.</p>
+    <p class="note">{t('Os rascunhos ficam só neste navegador e são apagados depois de 30 dias.')}</p>
   </section>
 {/if}
 

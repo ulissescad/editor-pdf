@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tk, tn } from '../lib/i18n.svelte';
   // Digitalizar com a câmera (PLANO.md, item 2.14): foto → marcar os 4 cantos → endireitar e limpar → PDF.
   // Os cantos são marcados à mão (sem detecção automática por IA, R2). Tudo acontece no aparelho.
   import { onDestroy, untrack } from 'svelte';
@@ -31,7 +32,7 @@
     format: PageFormat;  // formato com que `out` foi gerada
   }
 
-  const FILTERS: Array<[ScanFilter, string]> = [['doc', 'Documento'], ['color', 'Original'], ['gray', 'Cinza'], ['bw', 'Preto e branco']];
+  const FILTERS: Array<[ScanFilter, string]> = [['doc', tk('Documento')], ['color', tk('Original')], ['gray', tk('Cinza')], ['bw', tk('Preto e branco')]];
 
   let pages = $state.raw<ScanPage[]>([]);
   let editing = $state<number | null>(null);
@@ -68,7 +69,7 @@
     let firstNew: number | null = null;
     for (const [n, f] of list.entries()) {
       if (!isImage(f)) { bad.push(f.name); continue; }
-      busy = `Preparando a foto ${n + 1} de ${list.length}…`;
+      busy = t('Preparando a foto {i} de {n}…', { i: n + 1, n: list.length });
       try {
         const asset = await loadImageFile(f);
         const key = seq++;
@@ -83,14 +84,14 @@
       }
     }
     busy = '';
-    if (bad.length) error = `Não foi possível usar: ${bad.join(', ')}. Use JPG, PNG ou WebP.`;
+    if (bad.length) error = t('Não foi possível usar: {list}. Use JPG, PNG ou WebP.', { list: bad.join(', ') });
     if (firstNew !== null && editing === null) await edit(firstNew);
   }
 
   async function edit(key: number) {
     const p = pages.find((x) => x.key === key);
     if (!p) return;
-    busy = 'Abrindo a foto…';
+    busy = t('Abrindo a foto…');
     try {
       source = await decodeAsset(p.source);
       small = drawScaled(source, 640);
@@ -99,7 +100,7 @@
       editing = key;
     } catch (err) {
       console.error(err);
-      error = 'Não foi possível abrir esta foto.';
+      error = t('Não foi possível abrir esta foto.');
     } finally {
       busy = '';
     }
@@ -136,7 +137,7 @@
 
   async function apply() {
     if (!current || !source || !validQuad) return;
-    busy = 'Endireitando a página…';
+    busy = t('Endireitando a página…');
     error = '';
     await tick();
     try {
@@ -146,7 +147,7 @@
       await editNext();
     } catch (err) {
       console.error(err);
-      error = 'Não foi possível processar esta foto. Tente novamente.';
+      error = t('Não foi possível processar esta foto. Tente novamente.');
     } finally {
       busy = '';
     }
@@ -164,13 +165,13 @@
   }
 
   async function rotate(p: ScanPage) {
-    busy = 'Girando…';
+    busy = t('Girando…');
     await tick();
     try {
       await render({ ...p, turn: ((p.turn + 1) % 4) as Turn }, await decodeAsset(p.source));
     } catch (err) {
       console.error(err);
-      error = 'Não foi possível girar esta página.';
+      error = t('Não foi possível girar esta página.');
     } finally {
       busy = '';
     }
@@ -185,22 +186,22 @@
 
   async function build() {
     error = '';
-    busy = 'Gerando o PDF…';
+    busy = t('Gerando o PDF…');
     try {
       // Mudou o formato depois de ajustar? As páginas são refeitas com o formato atual
       for (const [i, p] of ready.entries()) {
-        busy = `Preparando a página ${i + 1} de ${ready.length}…`;
+        busy = t('Preparando a página {i} de {n}…', { i: i + 1, n: ready.length });
         await tick();
         if (p.format !== format) await render(p, await decodeAsset(p.source));
       }
-      busy = 'Gerando o PDF…';
+      busy = t('Gerando o PDF…');
       const { imagesToPdf } = await import('../pdf/pages');
       const images = pages.filter((p) => p.out).map((p) => ({ ...p.out!, page: p.page! }));
       const bytes = await imagesToPdf(images, { size: 'image', orientation: 'auto', margin: 0 });
-      result = { name: 'digitalizado.pdf', bytes, mime: 'application/pdf' };
+      result = { name: `${t('digitalizado')}.pdf`, bytes, mime: 'application/pdf' };
     } catch (err) {
       console.error(err);
-      error = 'Não foi possível gerar o PDF. Tente novamente.';
+      error = t('Não foi possível gerar o PDF. Tente novamente.');
     } finally {
       busy = '';
     }
@@ -216,73 +217,73 @@
 
 <ToolPage id="digitalizar" wide>
   {#if result}
-    <Result files={[result]} zipName="digitalizado.zip" summary="{ready.length} página{ready.length === 1 ? '' : 's'}."
+    <Result files={[result]} zipName="{t('digitalizado')}.zip" summary={tn(ready.length, '{n} página.', '{n} páginas.')}
       onedit={(f) => requestOpen({ kind: 'file', bytes: f.bytes, name: f.name })} onreset={reset} />
   {:else if current}
     <div class="work">
       <div class="panel">
-        <h2>Marque os 4 cantos do documento</h2>
+        <h2>{t('Marque os 4 cantos do documento')}</h2>
         <CornerEditor src={current.sourceUrl} width={current.source.w} height={current.source.h} bind:quad onrelease={drawPreview} />
-        {#if !validQuad}<p class="notice warn" role="alert">Os cantos se cruzaram ou estão perto demais. Arraste cada um para o seu canto do documento.</p>{/if}
+        {#if !validQuad}<p class="notice warn" role="alert">{t('Os cantos se cruzaram ou estão perto demais. Arraste cada um para o seu canto do documento.')}</p>{/if}
       </div>
       <div class="panel side">
         <div class="options">
           <div class="row">
-            <span class="label" id="flt-l">Aparência</span>
+            <span class="label" id="flt-l">{t('Aparência')}</span>
             <fieldset class="seg" aria-labelledby="flt-l">
               {#each FILTERS as [id, label] (id)}
-                <label><input type="radio" bind:group={filter} value={id}> {label}</label>
+                <label><input type="radio" bind:group={filter} value={id}> {t(label)}</label>
               {/each}
             </fieldset>
           </div>
           <div class="row">
-            <span class="label">Prévia</span>
-            <canvas bind:this={preview} class="preview" aria-label="Prévia da página endireitada"></canvas>
+            <span class="label">{t('Prévia')}</span>
+            <canvas bind:this={preview} class="preview" aria-label={t('Prévia da página endireitada')}></canvas>
           </div>
         </div>
         <div class="go">
-          <button class="button primary" onclick={apply} disabled={!!busy || !validQuad}><Check size={20} aria-hidden="true" /> Usar esta página</button>
-          <button class="button" onclick={cancelEdit} disabled={!!busy}>Cancelar</button>
+          <button class="button primary" onclick={apply} disabled={!!busy || !validQuad}><Check size={20} aria-hidden="true" /> {t('Usar esta página')}</button>
+          <button class="button" onclick={cancelEdit} disabled={!!busy}>{t('Cancelar')}</button>
         </div>
       </div>
     </div>
   {:else}
     {#if pages.length}
-      <ol class="grid" aria-label="Páginas digitalizadas, em ordem" use:sortable={{ item: '.card', handle: '.grip', onmove: move }}>
+      <ol class="grid" aria-label={t('Páginas digitalizadas, em ordem')} use:sortable={{ item: '.card', handle: '.grip', onmove: move }}>
         {#each pages as p, i (p.key)}
           <li class="card">
-            <span class="sheet"><img src={p.outUrl || p.sourceUrl} alt="Página {i + 1}" draggable="false"></span>
+            <span class="sheet"><img src={p.outUrl || p.sourceUrl} alt={t('Página {n}', { n: i + 1 })} draggable="false"></span>
             <span class="foot">
-              <span class="grip" aria-hidden="true" title="Arraste para mudar a ordem"><Grip size={18} /></span>
+              <span class="grip" aria-hidden="true" title={t('Arraste para mudar a ordem')}><Grip size={18} /></span>
               <span class="num">{i + 1}</span>
-              <button class="icon" aria-label="Mover a página {i + 1} para antes" disabled={i === 0} onclick={() => move(i, i - 1)}><ArrowLeft size={18} /></button>
-              <button class="icon" aria-label="Mover a página {i + 1} para depois" disabled={i === pages.length - 1} onclick={() => move(i, i + 1)}><ArrowRight size={18} /></button>
-              <button class="icon" aria-label="Ajustar os cantos da página {i + 1}" onclick={() => edit(p.key)}><Crop size={18} /></button>
-              <button class="icon" aria-label="Girar a página {i + 1}" disabled={!p.out || !!busy} onclick={() => rotate(p)}><RotateCw size={18} /></button>
-              <button class="icon danger" aria-label="Remover a página {i + 1}" onclick={() => remove(p)}><Trash size={18} /></button>
+              <button class="icon" aria-label={t('Mover a página {n} para antes', { n: i + 1 })} disabled={i === 0} onclick={() => move(i, i - 1)}><ArrowLeft size={18} /></button>
+              <button class="icon" aria-label={t('Mover a página {n} para depois', { n: i + 1 })} disabled={i === pages.length - 1} onclick={() => move(i, i + 1)}><ArrowRight size={18} /></button>
+              <button class="icon" aria-label={t('Ajustar os cantos da página {n}', { n: i + 1 })} onclick={() => edit(p.key)}><Crop size={18} /></button>
+              <button class="icon" aria-label={t('Girar a página {n}', { n: i + 1 })} disabled={!p.out || !!busy} onclick={() => rotate(p)}><RotateCw size={18} /></button>
+              <button class="icon danger" aria-label={t('Remover a página {n}', { n: i + 1 })} onclick={() => remove(p)}><Trash size={18} /></button>
             </span>
           </li>
         {/each}
       </ol>
     {/if}
-    <FileDrop label={pages.length ? 'Adicionar página' : 'Escolher fotos'} accept="image/*" multiple camera
-      compact={pages.length > 0} hint="Fotografe o documento sobre um fundo escuro, com boa luz" onfiles={addFiles} />
+    <FileDrop label={pages.length ? t('Adicionar página') : t('Escolher fotos')} accept="image/*" multiple camera
+      compact={pages.length > 0} hint={t('Fotografe o documento sobre um fundo escuro, com boa luz')} onfiles={addFiles} />
 
     {#if ready.length}
       <div class="panel opts">
         <div class="options">
           <div class="row">
-            <span class="label" id="fmt-l">Tamanho da página</span>
+            <span class="label" id="fmt-l">{t('Tamanho da página')}</span>
             <fieldset class="seg" aria-labelledby="fmt-l">
-              <label><input type="radio" bind:group={format} value="auto"> Automático</label>
+              <label><input type="radio" bind:group={format} value="auto"> {t('Automático')}</label>
               <label><input type="radio" bind:group={format} value="a4"> A4</label>
-              <label><input type="radio" bind:group={format} value="letter"> Carta</label>
+              <label><input type="radio" bind:group={format} value="letter"> {t('Carta')}</label>
             </fieldset>
-            <p class="hint">Automático mantém a proporção do documento fotografado (e usa A4 ou Carta quando for o caso).</p>
+            <p class="hint">{t('Automático mantém a proporção do documento fotografado (e usa A4 ou Carta quando for o caso).')}</p>
           </div>
         </div>
         <div class="go">
-          <button class="button primary" onclick={build} disabled={!!busy}><FileOutput size={20} aria-hidden="true" /> Gerar PDF</button>
+          <button class="button primary" onclick={build} disabled={!!busy}><FileOutput size={20} aria-hidden="true" /> {t('Gerar PDF')}</button>
         </div>
       </div>
     {/if}

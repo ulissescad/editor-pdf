@@ -2,6 +2,7 @@
 // arquivo de origem (com giro extra) ou em branco. Juntar, dividir e organizar são todos “montar um plano”.
 // Funções puras, testadas em tests/unit.
 import { cloneObj, newId, type Obj } from '../editor/model';
+import { t, tn } from '../lib/i18n.svelte';
 
 export interface SourcePage { src: number; index: number; rotate?: number }  // rotate: giro a somar, em graus
 export interface BlankPage { blank: true; width: number; height: number }     // tamanho em pt (sem giro)
@@ -43,16 +44,16 @@ export type RangeResult = { groups: number[][] } | { error: string };
  */
 export function parseRanges(text: string, total: number): RangeResult {
   const parts = text.split(/[,;]+/).map((p) => p.trim()).filter(Boolean);
-  if (!parts.length) return { error: 'Digite as páginas, por exemplo: 1-3, 5' };
+  if (!parts.length) return { error: t('Digite as páginas, por exemplo: 1-3, 5') };
   const groups: number[][] = [];
   for (const part of parts) {
     const m = /^(\d*)\s*(?:[-–a]\s*(\d*))?$/.exec(part.replace(/\s+/g, ' '));
-    if (!m || (!m[1] && m[2] === undefined)) return { error: `“${part}” não é um intervalo válido.` };
+    if (!m || (!m[1] && m[2] === undefined)) return { error: t('“{part}” não é um intervalo válido.', { part }) };
     const isRange = part.includes('-') || part.includes('–') || / a /.test(` ${part} `);
     const a = m[1] ? Number(m[1]) : 1;
     const b = isRange ? (m[2] ? Number(m[2]) : total) : a;
     if (a < 1 || b < 1 || a > total || b > total) {
-      return { error: `A página ${Math.max(a, b) > total ? Math.max(a, b) : Math.min(a, b)} não existe (o PDF tem ${total}).` };
+      return { error: tn(total, 'A página {p} não existe (o PDF tem {n} página).', 'A página {p} não existe (o PDF tem {n} páginas).', { p: String(Math.max(a, b) > total ? Math.max(a, b) : Math.min(a, b)) }) };
     }
     const step = a <= b ? 1 : -1;
     const g: number[] = [];

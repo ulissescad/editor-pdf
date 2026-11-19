@@ -136,7 +136,7 @@ test('símbolos e data de hoje', async ({ page }) => {
 test('PDF sem formulário: detectar campos, preencher e baixar um PDF preenchível', async ({ page }) => {
   await openFromHome(page, 'pei-like.pdf');
   await page.locator('#status').getByRole('button', { name: 'Detectar campos' }).click();
-  await expect(page.locator('#status')).toContainText('28 campo(s) encontrado(s)');
+  await expect(page.locator('#status')).toContainText('28 campos encontrados');
   await expect(page.locator('.obox.field')).toHaveCount(28);
 
   // Preenche o primeiro campo e marca “Sim”

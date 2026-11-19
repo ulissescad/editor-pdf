@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tk } from '../lib/i18n.svelte';
   // Marcar os 4 cantos do documento na foto: arrastar com o dedo ou o mouse, ou usar as setas do teclado.
   // Enquanto arrasta, uma lupa no canto oposto mostra o que está embaixo do dedo.
   import type { Pt, Quad } from '../pdf/perspective';
@@ -7,7 +8,7 @@
     src: string; width: number; height: number; quad: Quad; onrelease?: () => void;
   } = $props();
 
-  const NAMES = ['superior esquerdo', 'superior direito', 'inferior direito', 'inferior esquerdo'];
+  const NAMES = [tk('Canto superior esquerdo'), tk('Canto superior direito'), tk('Canto inferior direito'), tk('Canto inferior esquerdo')];
   const LOUPE = 112, ZOOM = 3;
 
   let stage: HTMLElement;
@@ -89,13 +90,13 @@
 <div class="outer">
   <div class="stage" bind:this={stage} style:aspect-ratio="{width} / {height}"
     style:max-width="min(100%, calc(68dvh * {width / height}))">
-    <img bind:this={img} {src} alt="Foto do documento" draggable="false">
+    <img bind:this={img} {src} alt={t('Foto do documento')} draggable="false">
     <svg viewBox="0 0 {width} {height}" preserveAspectRatio="none" aria-hidden="true">
       <path class="shade" fill-rule="evenodd" d="M0 0H{width}V{height}H0Z M{quad.map((p) => p.join(' ')).join('L')}Z" />
       <polygon class="edge" {points} vector-effect="non-scaling-stroke" />
     </svg>
     {#each quad as p, i (i)}
-      <button type="button" class="handle" class:active={active === i} aria-label="Canto {NAMES[i]}"
+      <button type="button" class="handle" class:active={active === i} aria-label={t(NAMES[i])}
         style:left="{(p[0] / width) * 100}%" style:top="{(p[1] / height) * 100}%"
         onpointerdown={(e) => down(e, i)} onpointermove={(e) => move(e, i)}
         onpointerup={() => up(i)} onpointercancel={() => up(i)} onkeydown={(e) => key(e, i)}><span></span></button>

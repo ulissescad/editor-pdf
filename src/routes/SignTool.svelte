@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   // Ferramenta “Assinar PDF”: escolher o arquivo e cair no editor com a assinatura já aberta.
   import { requestOpen, readPdf } from '../editor/session';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -13,24 +14,24 @@
     error = '';
     if (!file) return;
     const bytes = await readPdf(file);
-    if (!bytes) { error = 'Escolha um arquivo .pdf.'; return; }
+    if (!bytes) { error = t('Escolha um arquivo .pdf.'); return; }
     requestOpen({ kind: 'file', bytes, name: /\.pdf$/i.test(file.name) ? file.name : `${file.name}.pdf`, then: 'sign' });
   }
 </script>
 
 <section class="wrap page">
-  <a class="back" href="#/"><ArrowLeft size={18} aria-hidden="true" /> Todas as ferramentas</a>
-  <div class="box" class:dragging role="region" aria-label="Escolher PDF para assinar"
+  <a class="back" href="#/"><ArrowLeft size={18} aria-hidden="true" /> {t('Todas as ferramentas')}</a>
+  <div class="box" class:dragging role="region" aria-label={t('Escolher PDF para assinar')}
     ondragover={(e) => { e.preventDefault(); dragging = true; }}
     ondragleave={() => (dragging = false)}
     ondrop={(e) => { e.preventDefault(); dragging = false; open(e.dataTransfer?.files[0]); }}>
     <span class="icon"><Signature size={32} aria-hidden="true" /></span>
-    <h1>Assinar PDF</h1>
-    <p>Desenhe com o dedo, digite seu nome ou use a foto da sua assinatura. Depois, arraste até o lugar certo e baixe o PDF assinado.</p>
-    <button class="button primary big" onclick={() => input.click()}><FileUp size={20} aria-hidden="true" /> Escolher PDF para assinar</button>
+    <h1>{t('Assinar PDF')}</h1>
+    <p>{t('Desenhe com o dedo, digite seu nome ou use a foto da sua assinatura. Depois, arraste até o lugar certo e baixe o PDF assinado.')}</p>
+    <button class="button primary big" onclick={() => input.click()}><FileUp size={20} aria-hidden="true" /> {t('Escolher PDF para assinar')}</button>
     <input bind:this={input} type="file" accept="application/pdf,.pdf" hidden onchange={(e) => open(e.currentTarget.files?.[0])}>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
-    <p class="note">Assinatura eletrônica simples, feita no seu aparelho. O arquivo não é enviado para lugar nenhum.</p>
+    <p class="note">{t('Assinatura eletrônica simples, feita no seu aparelho. O arquivo não é enviado para lugar nenhum.')}</p>
   </div>
 </section>
 

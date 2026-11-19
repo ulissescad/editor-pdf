@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte';
   import { onMount } from 'svelte';
   import { FONTS, LINE, PAD, isItalic, minHeight, type TextObj } from './model';
   import { localSize } from './geom';
@@ -137,10 +138,10 @@
   onpointerdown={onPointerDown}
   onmousedown={onMouseDown}
   role="group"
-  aria-label="Caixa de texto"
+  aria-label={t('Caixa de texto')}
 >
   {#if selected}
-    <div class="grip" title="Arraste para mover" aria-hidden="true">✥ mover</div>
+    <div class="grip" title={t('Arraste para mover')} aria-hidden="true">✥ {t('mover')}</div>
   {/if}
   <div
     bind:this={content}
