@@ -1,7 +1,10 @@
 // Carregamento do pdf.js, sempre a partir do próprio site (worker, fontes padrão, CMaps, WASM, ICC).
-import * as pdfjsLib from 'pdfjs-dist';
+// Usa a versão "legacy": a "moderna" do pdf.js 6 chama APIs recentíssimas (Map.getOrInsertComputed,
+// Math.sumPrecise, RegExp.escape) sem alternativa, e falha ao abrir qualquer PDF em navegadores de
+// celular (Samsung Internet, Chrome não atualizado). A legacy traz essas funções embutidas.
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 // O pdf_viewer.mjs (componentes do visualizador) lê a biblioteca deste global
@@ -13,7 +16,7 @@ export type { PDFDocumentProxy };
 const assets = () => new URL(`${import.meta.env.BASE_URL}pdfjs/`, location.href).href;
 
 /** Os componentes do visualizador só podem ser importados depois do global acima. */
-export const loadViewerComponents = () => import('pdfjs-dist/web/pdf_viewer.mjs');
+export const loadViewerComponents = () => import('pdfjs-dist/legacy/web/pdf_viewer.mjs');
 
 export async function openPdf(data: Uint8Array, password?: string): Promise<PDFDocumentProxy> {
   const base = assets();
